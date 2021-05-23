@@ -56,15 +56,25 @@ include(CopyClangFormat)
 
 include_directories(${CMAKE_INSTALL_INCLUDEDIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/src)
 
 # install dependencies
 include(InstallBcosFrameworkDependencies)
+
+# define the generated proto file path
+set(PROTO_PATH ${PROJECT_SOURCE_DIR})
+set(PROTO_GENERATE_BASE_DIR ${CMAKE_CURRENT_BINARY_DIR})
+set(PROTO_SUB_DIR "src/protocol/proto")
+
+set(BLOCK_SYNC_TARGET "block-sync")
+add_subdirectory(src)
+
 if (TESTS)
     # fetch bcos-test    
     enable_testing()
     set(CTEST_OUTPUT_ON_FAILURE TRUE)
-    add_subdirectory(test)
 endif()
 
 # for doxygen
