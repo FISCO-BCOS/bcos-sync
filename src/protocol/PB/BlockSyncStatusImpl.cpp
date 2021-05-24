@@ -19,10 +19,12 @@
  * @date 2021-05-23
  */
 #include "BlockSyncStatusImpl.h"
+
 using namespace bcos;
 using namespace bcos::sync;
 using namespace bcos::protocol;
 using namespace bcos::crypto;
+
 void BlockSyncStatusImpl::decode(bytesConstRef _data)
 {
     BlockSyncMsgImpl::decode(_data);

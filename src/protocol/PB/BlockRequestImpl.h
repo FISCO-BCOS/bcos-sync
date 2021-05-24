@@ -21,6 +21,7 @@
 #pragma once
 #include "interfaces/BlockRequestInterface.h"
 #include "protocol/PB/BlockSyncMsgImpl.h"
+#include "utilities/Common.h"
 namespace bcos
 {
 namespace sync
@@ -28,12 +29,26 @@ namespace sync
 class BlockRequestImpl : public BlockRequestInterface, public BlockSyncMsgImpl
 {
 public:
-    BlockRequestImpl() : BlockSyncMsgImpl() {}
+    BlockRequestImpl() : BlockSyncMsgImpl()
+    {
+        setPacketType(BlockSyncPacketType::BlockRequestPacket);
+    }
+    explicit BlockRequestImpl(BlockSyncMsgImpl::Ptr _blockSyncMsg)
+      : BlockRequestImpl(_blockSyncMsg->syncMessage())
+    {}
+
     explicit BlockRequestImpl(bytesConstRef _data) : BlockRequestImpl() { decode(_data); }
     ~BlockRequestImpl() override {}
 
     size_t size() const override { return m_syncMessage->size(); }
     void setSize(size_t _size) override { m_syncMessage->set_size(_size); }
+
+protected:
+    explicit BlockRequestImpl(std::shared_ptr<BlockSyncMessage> _syncMessage)
+    {
+        setPacketType(BlockSyncPacketType::BlockRequestPacket);
+        m_syncMessage = _syncMessage;
+    }
 };
 }  // namespace sync
 }  // namespace bcos
