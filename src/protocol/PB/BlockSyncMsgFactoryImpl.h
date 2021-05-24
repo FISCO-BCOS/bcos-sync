@@ -21,12 +21,12 @@
 #pragma once
 #include "interfaces/BlockSyncMsgFactory.h"
 #include "interfaces/protocol/PB/BlockSyncStatusImpl.h"
-#include <bcos-frameowork/libsync/protocol/PB/TxsSyncMsgFactoryImpl.h>
+#include "interfaces/protocol/PB/BlocksMessageImpl.h"
 namespace bcos
 {
 namespace sync
 {
-class BlockSyncMsgFactoryImpl : public virtual BlockSyncMsgFactory, public TxsSyncMsgFactoryImpl
+class BlockSyncMsgFactoryImpl : public BlockSyncMsgFactory
 {
 public:
     BlockSyncMsgFactoryImpl() = default;
@@ -36,9 +36,19 @@ public:
     {
         return std::make_shared<BlockSyncStatusImpl>();
     }
+
     BlockSyncStatusInterface::Ptr createBlockSyncStatusMsg(bytesConstRef _data) override
     {
         return std::make_shared<BlockSyncStatusImpl>(_data);
+    }
+
+    BlocksMessageInterface::Ptr createBlocksMsg() override
+    {
+        return std::make_shared<BlocksMessageImpl>();
+    }
+    BlocksMessageInterface::Ptr createBlocksMsg(bytesConstRef _data) override
+    {
+        return std::make_shared<BlocksMessageImpl>(_data);
     }
 };
 }  // namespace sync

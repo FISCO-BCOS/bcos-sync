@@ -33,12 +33,12 @@ public:
     BlockSyncStatusInterface() = default;
     virtual ~BlockSyncStatusInterface() {}
 
-    virtual bytesPointer encode() = 0;
+    virtual bytesPointer encode() const = 0;
     virtual void decode(bytesConstRef _data) = 0;
 
-    virtual bcos::protocol::BlockNumber number() = 0;
-    virtual bcos::crypto::HashType const& hash() = 0;
-    virtual bcos::crypto::HashType const& genesisHash() = 0;
+    virtual bcos::protocol::BlockNumber number() const = 0;
+    virtual bcos::crypto::HashType const& hash() const = 0;
+    virtual bcos::crypto::HashType const& genesisHash() const = 0;
 
     virtual void setNumber(bcos::protocol::BlockNumber _number) = 0;
     virtual void setHash(bcos::crypto::HashType const& _hash) = 0;

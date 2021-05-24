@@ -32,7 +32,7 @@ BlockSyncStatusImpl::BlockSyncStatusImpl(bytesConstRef _data)
     decode(_data);
 }
 
-bytesPointer BlockSyncStatusImpl::encode()
+bytesPointer BlockSyncStatusImpl::encode() const
 {
     return encodePBObject(m_blockSyncStatus);
 }
@@ -56,27 +56,6 @@ void BlockSyncStatusImpl::deserializeObject()
         m_genesisHash = HashType((byte const*)genesisHashData.size(), HashType::size);
     }
 }
-
-BlockNumber BlockSyncStatusImpl::number()
-{
-    return m_blockSyncStatus->number();
-}
-
-HashType const& BlockSyncStatusImpl::hash()
-{
-    return m_hash;
-}
-
-HashType const& BlockSyncStatusImpl::genesisHash()
-{
-    return m_genesisHash;
-}
-
-void BlockSyncStatusImpl::setNumber(BlockNumber _number)
-{
-    m_blockSyncStatus->set_number(_number);
-}
-
 void BlockSyncStatusImpl::setHash(HashType const& _hash)
 {
     m_hash = _hash;

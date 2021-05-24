@@ -7,3 +7,9 @@ message BlockSyncStatus
     bytes hash = 3;
     bytes genesisHash = 4;
 }
+
+message BlocksMessage
+{
+    int32 version = 1;
+    repeated bytes blocksData = 2;
+}

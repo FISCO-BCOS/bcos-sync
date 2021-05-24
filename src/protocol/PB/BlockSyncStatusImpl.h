@@ -33,12 +33,12 @@ public:
     explicit BlockSyncStatusImpl(bytesConstRef _data);
     ~BlockSyncStatusImpl() override {}
 
-    bytesPointer encode() override;
+    bytesPointer encode() const override;
     void decode(bytesConstRef _data) override;
 
-    bcos::protocol::BlockNumber number() override;
-    bcos::crypto::HashType const& hash() override;
-    bcos::crypto::HashType const& genesisHash() override;
+    bcos::protocol::BlockNumber number() const override { return m_blockSyncStatus->number(); }
+    bcos::crypto::HashType const& hash() const override { return m_hash; }
+    bcos::crypto::HashType const& genesisHash() const override { return m_genesisHash; }
 
     void setNumber(bcos::protocol::BlockNumber _number) override;
     void setHash(bcos::crypto::HashType const& _hash) override;
