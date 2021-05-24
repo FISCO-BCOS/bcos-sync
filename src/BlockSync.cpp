@@ -13,24 +13,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief Common files for block sync
- * @file Common.h
+ * @brief block sync implementation
+ * @file BlockSync.cpp
  * @author: yujiechen
- * @date 2021-05-23
+ * @date 2021-05-24
  */
-#pragma once
-#include <bcos-framework/libutilities/Log.h>
+#include "BlockSync.h"
 
-#define BLOCK_SYNC_LOG(LEVEL) LOG(LEVEL) << LOG_BADGE("BLOCK SYNC")
-namespace bcos
-{
-namespace sync
-{
-enum BlockSyncPacketType : int32_t
-{
-    BlockStatusPacket = 0x00,
-    BlockRequestPacket = 0x01,
-    BlockResponsePacket = 0x02,
-};
-}
-}  // namespace bcos
+using namespace bcos;
+using namespace bcos::sync;
+
+void BlockSync::start() {}
+
+void BlockSync::stop() {}

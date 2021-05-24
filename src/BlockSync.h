@@ -13,8 +13,30 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief PB implementation for BlocksMessageInterface
- * @file BlocksMessageImpl.cpp
+ * @brief block sync implementation
+ * @file BlockSync.h
  * @author: yujiechen
  * @date 2021-05-24
  */
+#pragma once
+#include "BlockSyncConfig.h"
+#include "interfaces/BlockSyncInterface.h"
+namespace bcos
+{
+namespace sync
+{
+class BlockSync : public BlockSyncInterface
+{
+public:
+    using Ptr = std::shared_ptr<BlockSync>;
+    explicit BlockSync(BlockSyncConfig::Ptr _config) : m_config(_config) {}
+    ~BlockSync() override {}
+
+    void start() override;
+    void stop() override;
+
+private:
+    BlockSyncConfig::Ptr m_config;
+};
+}  // namespace sync
+}  // namespace bcos

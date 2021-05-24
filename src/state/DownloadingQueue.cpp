@@ -1,0 +1,178 @@
+/**
+ *  Copyright (C) 2021 FISCO BCOS.
+ *  SPDX-License-Identifier: Apache-2.0
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ * @brief queue to store the downloading blocks
+ * @file DownloadingQueue.cpp
+ * @author: jimmyshi
+ * @date 2021-05-24
+ */
+#include "DownloadingQueue.h"
+#include "utilities/Common.h"
+
+using namespace std;
+using namespace bcos;
+using namespace bcos::protocol;
+using namespace bcos::sync;
+
+void DownloadingQueue::push(BlocksMsgInterface::Ptr _blocksData)
+{
+    // push to the blockBuffer firstly
+    UpgradableGuard l(x_blockBuffer);
+    if (m_blockBuffer->size() >= m_config->maxDownloadingBlockQueueSize())
+    {
+        BLOCK_SYNC_LOG(WARNING) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
+                                << LOG_DESC("DownloadingBlockQueueBuffer is full")
+                                << LOG_KV("queueSize", m_blockBuffer->size());
+        return;
+    }
+    UpgradeGuard ul(l);
+    m_blockBuffer->emplace_back(_blocksData);
+}
+
+bool DownloadingQueue::empty()
+{
+    ReadGuard l1(x_blockBuffer);
+    ReadGuard l2(x_blocks);
+    return (m_blocks.empty() && (!m_blockBuffer || m_blockBuffer->empty()));
+}
+
+size_t DownloadingQueue::size()
+{
+    ReadGuard l1(x_blockBuffer);
+    ReadGuard l2(x_blocks);
+    size_t s = (!m_blockBuffer ? 0 : m_blockBuffer->size()) + m_blocks.size();
+    return s;
+}
+
+void DownloadingQueue::pop()
+{
+    WriteGuard l(x_blocks);
+    if (!m_blocks.empty())
+    {
+        m_blocks.pop();
+    }
+}
+
+Block::Ptr DownloadingQueue::top(bool isFlushBuffer)
+{
+    if (isFlushBuffer)
+    {
+        flushBufferToQueue();
+    }
+    ReadGuard l(x_blocks);
+    if (!m_blocks.empty())
+    {
+        return m_blocks.top();
+    }
+    return nullptr;
+}
+
+void DownloadingQueue::clear()
+{
+    {
+        WriteGuard l(x_blockBuffer);
+        m_blockBuffer->clear();
+    }
+    clearQueue();
+}
+
+void DownloadingQueue::clearQueue()
+{
+    WriteGuard l(x_blocks);
+    BlockQueue emptyQueue;
+    swap(m_blocks, emptyQueue);  // Does memory leak here ?
+}
+
+void DownloadingQueue::flushBufferToQueue()
+{
+    WriteGuard l(x_blockBuffer);
+    bool ret = true;
+    while (m_blockBuffer->size() > 0 && ret)
+    {
+        auto blocksShard = m_blockBuffer->front();
+        m_blockBuffer->pop_front();
+        ret = flushOneShard(blocksShard);
+    }
+}
+
+bool DownloadingQueue::flushOneShard(BlocksMsgInterface::Ptr _blocksData)
+{
+    // pop buffer into queue
+    WriteGuard l(x_blocks);
+    if (m_blocks.size() >= m_config->maxDownloadingBlockQueueSize())
+    {
+        BLOCK_SYNC_LOG(DEBUG) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
+                              << LOG_DESC("DownloadingBlockQueueBuffer is full")
+                              << LOG_KV("queueSize", m_blocks.size());
+
+        return false;
+    }
+    BLOCK_SYNC_LOG(TRACE) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
+                          << LOG_DESC("Decoding block buffer")
+                          << LOG_KV("blocksShardSize", _blocksData->blocksSize());
+    size_t blocksSize = _blocksData->blocksSize();
+    size_t successCnt = 0;
+    for (size_t i = 0; i < blocksSize; i++)
+    {
+        try
+        {
+            auto block =
+                m_config->blockFactory()->createBlock(_blocksData->blockData(i), true, true);
+            if (isNewerBlock(block))
+            {
+                m_blocks.push(block);
+                successCnt++;
+            }
+        }
+        catch (std::exception const& e)
+        {
+            BLOCK_SYNC_LOG(WARNING)
+                << LOG_BADGE("Download") << LOG_BADGE("BlockSync") << LOG_DESC("Invalid block data")
+                << LOG_KV("reason", boost::diagnostic_information(e))
+                << LOG_KV("blockDataSize", _blocksData->blockData(i).size());
+            continue;
+        }
+    }
+    BLOCK_SYNC_LOG(DEBUG) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
+                          << LOG_DESC("Flush buffer to block queue") << LOG_KV("import", successCnt)
+                          << LOG_KV("rcv", blocksSize)
+                          << LOG_KV("downloadBlockQueue", m_blocks.size());
+    return true;
+}
+
+bool DownloadingQueue::isNewerBlock(Block::Ptr _block)
+{
+    if (_block->blockHeader()->number() <= m_config->blockNumber())
+    {
+        return false;
+    }
+    return true;
+}
+
+void DownloadingQueue::clearFullQueueIfNotHas(BlockNumber _blockNumber)
+{
+    // TODO: optimize here?
+    bool needClear = false;
+    {
+        ReadGuard l(x_blocks);
+        if (m_blocks.size() == m_config->maxDownloadingBlockQueueSize() &&
+            m_blocks.top()->blockHeader()->number() > _blockNumber)
+            needClear = true;
+    }
+    if (needClear)
+    {
+        clearQueue();
+    }
+}

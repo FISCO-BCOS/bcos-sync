@@ -20,8 +20,9 @@
  */
 #pragma once
 #include "interfaces/BlockSyncMsgFactory.h"
+#include "interfaces/protocol/PB/BlockRequestImpl.h"
 #include "interfaces/protocol/PB/BlockSyncStatusImpl.h"
-#include "interfaces/protocol/PB/BlocksMessageImpl.h"
+#include "interfaces/protocol/PB/BlocksMsgImpl.h"
 namespace bcos
 {
 namespace sync
@@ -42,13 +43,19 @@ public:
         return std::make_shared<BlockSyncStatusImpl>(_data);
     }
 
-    BlocksMessageInterface::Ptr createBlocksMsg() override
+    BlocksMsgInterface::Ptr createBlocksMsg() override { return std::make_shared<BlocksMsgImpl>(); }
+    BlocksMsgInterface::Ptr createBlocksMsg(bytesConstRef _data) override
     {
-        return std::make_shared<BlocksMessageImpl>();
+        return std::make_shared<BlocksMsgImpl>(_data);
     }
-    BlocksMessageInterface::Ptr createBlocksMsg(bytesConstRef _data) override
+
+    BlockRequestInterface::Ptr createBlockRequest() override
     {
-        return std::make_shared<BlocksMessageImpl>(_data);
+        return std::make_shared<BlockRequestImpl>();
+    }
+    BlockRequestInterface::Ptr createBlockRequest(bytesConstRef _data) override
+    {
+        return std::make_shared<BlockRequestImpl>(_data);
     }
 };
 }  // namespace sync

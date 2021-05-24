@@ -13,32 +13,30 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief status for the block sync
- * @file BlockSyncStatueInterface.h
+ * @brief interface for the message contains blockData
+ * @file BlocksMsgInterface.h
  * @author: yujiechen
- * @date 2021-05-23
+ * @date 2021-05-24
  */
-
 #pragma once
 #include "interfaces/BlockSyncMsgInterface.h"
-#include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
 namespace bcos
 {
 namespace sync
 {
-class BlockSyncStatusInterface : public virtual BlockSyncMsgInterface
+class BlocksMsgInterface : public virtual BlockSyncMsgInterface
 {
 public:
-    using Ptr = std::shared_ptr<BlockSyncStatusInterface>;
-    using ConstPtr = std::shared_ptr<BlockSyncStatusInterface const>;
-    BlockSyncStatusInterface() = default;
-    virtual ~BlockSyncStatusInterface() {}
+    using Ptr = std::shared_ptr<BlocksMsgInterface>;
+    BlocksMsgInterface() = default;
+    virtual ~BlocksMsgInterface() {}
 
-    virtual bcos::crypto::HashType const& hash() const = 0;
-    virtual bcos::crypto::HashType const& genesisHash() const = 0;
+    virtual size_t blocksSize() const = 0;
+    virtual bytesConstRef blockData(size_t _index) const = 0;
 
-    virtual void setHash(bcos::crypto::HashType const& _hash) = 0;
-    virtual void setGenesisHash(bcos::crypto::HashType const& _gensisHash) = 0;
+    virtual void appendBlockData(bytes&& _blockData) = 0;
 };
+using BlocksMsgList = std::vector<BlocksMsgInterface::Ptr>;
+using BlocksMsgListPtr = std::shared_ptr<BlocksMsgList>;
 }  // namespace sync
 }  // namespace bcos

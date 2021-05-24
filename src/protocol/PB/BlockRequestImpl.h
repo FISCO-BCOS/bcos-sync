@@ -13,32 +13,27 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief status for the block sync
- * @file BlockSyncStatueInterface.h
+ * @brief PB implementation for BlockRequestInterface
+ * @file BlockRequestImpl.h
  * @author: yujiechen
- * @date 2021-05-23
+ * @date 2021-05-24
  */
-
 #pragma once
-#include "interfaces/BlockSyncMsgInterface.h"
-#include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
+#include "interfaces/BlockRequestInterface.h"
+#include "protocol/PB/BlockSyncMsgImpl.h"
 namespace bcos
 {
 namespace sync
 {
-class BlockSyncStatusInterface : public virtual BlockSyncMsgInterface
+class BlockRequestImpl : public BlockRequestInterface, public BlockSyncMsgImpl
 {
 public:
-    using Ptr = std::shared_ptr<BlockSyncStatusInterface>;
-    using ConstPtr = std::shared_ptr<BlockSyncStatusInterface const>;
-    BlockSyncStatusInterface() = default;
-    virtual ~BlockSyncStatusInterface() {}
+    BlockRequestImpl() : BlockSyncMsgImpl() {}
+    explicit BlockRequestImpl(bytesConstRef _data) : BlockRequestImpl() { decode(_data); }
+    ~BlockRequestImpl() override {}
 
-    virtual bcos::crypto::HashType const& hash() const = 0;
-    virtual bcos::crypto::HashType const& genesisHash() const = 0;
-
-    virtual void setHash(bcos::crypto::HashType const& _hash) = 0;
-    virtual void setGenesisHash(bcos::crypto::HashType const& _gensisHash) = 0;
+    size_t size() const override { return m_syncMessage->size(); }
+    void setSize(size_t _size) override { m_syncMessage->set_size(_size); }
 };
 }  // namespace sync
 }  // namespace bcos
