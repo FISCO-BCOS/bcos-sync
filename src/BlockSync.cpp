@@ -13,27 +13,16 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief interfaces for block sync
- * @file BlockSyncInterface.h
+ * @brief block sync implementation
+ * @file BlockSync.cpp
  * @author: yujiechen
- * @date 2021-05-23
+ * @date 2021-05-24
  */
+#include "BlockSync.h"
 
-#pragma once
-#include <memory>
-namespace bcos
-{
-namespace sync
-{
-class BlockSyncInterface
-{
-public:
-    using Ptr = std::shared_ptr<BlockSyncInterface>;
-    BlockSyncInterface() = default;
-    virtual ~BlockSyncInterface() {}
+using namespace bcos;
+using namespace bcos::sync;
 
-    virtual void start() = 0;
-    virtual void stop() = 0;
-};
-}  // namespace sync
-}  // namespace bcos
+void BlockSync::start() {}
+
+void BlockSync::stop() {}

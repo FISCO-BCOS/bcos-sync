@@ -19,13 +19,14 @@
  * @date 2021-05-23
  */
 #pragma once
-#include <bcos-framework/libsync/interfaces/TxsSyncMsgFactory.h>
-#include <interfaces/BlockSyncStatusInterface.h>
+#include "interfaces/BlockRequestInterface.h"
+#include "interfaces/BlockSyncStatusInterface.h"
+#include "interfaces/BlocksMsgInterface.h"
 namespace bcos
 {
 namespace sync
 {
-class BlockSyncMsgFactory : public virtual TxsSyncMsgFactory
+class BlockSyncMsgFactory
 {
 public:
     using Ptr = std::shared_ptr<BlockSyncMsgFactory>;
@@ -34,6 +35,10 @@ public:
 
     virtual BlockSyncStatusInterface::Ptr createBlockSyncStatusMsg() = 0;
     virtual BlockSyncStatusInterface::Ptr createBlockSyncStatusMsg(bytesConstRef _data) = 0;
+    virtual BlocksMsgInterface::Ptr createBlocksMsg() = 0;
+    virtual BlocksMsgInterface::Ptr createBlocksMsg(bytesConstRef _data) = 0;
+    virtual BlockRequestInterface::Ptr createBlockRequest() = 0;
+    virtual BlockRequestInterface::Ptr createBlockRequest(bytesConstRef _data) = 0;
 };
 }  // namespace sync
 }  // namespace bcos

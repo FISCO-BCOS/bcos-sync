@@ -20,27 +20,23 @@
  */
 #pragma once
 #include "interfaces/BlockSyncStatusInterface.h"
-#include "protocol/proto/BlockSync.pb.h"
+#include "protocol/PB/BlockSyncMsgImpl.h"
 namespace bcos
 {
 namespace sync
 {
-class BlockSyncStatusImpl : public BlockSyncStatusInterface
+class BlockSyncStatusImpl : public BlockSyncStatusInterface, public BlockSyncMsgImpl
 {
 public:
     using Ptr = std::shared_ptr<BlockSyncStatusImpl>;
-    BlockSyncStatusImpl() : m_blockSyncStatus(std::make_shared<BlockSyncStatus>()) {}
-    explicit BlockSyncStatusImpl(bytesConstRef _data);
+    BlockSyncStatusImpl() : BlockSyncMsgImpl() {}
+    explicit BlockSyncStatusImpl(bytesConstRef _data) : BlockSyncStatusImpl() { decode(_data); }
     ~BlockSyncStatusImpl() override {}
 
-    bytesPointer encode() override;
     void decode(bytesConstRef _data) override;
+    bcos::crypto::HashType const& hash() const override { return m_hash; }
+    bcos::crypto::HashType const& genesisHash() const override { return m_genesisHash; }
 
-    bcos::protocol::BlockNumber number() override;
-    bcos::crypto::HashType const& hash() override;
-    bcos::crypto::HashType const& genesisHash() override;
-
-    void setNumber(bcos::protocol::BlockNumber _number) override;
     void setHash(bcos::crypto::HashType const& _hash) override;
     void setGenesisHash(bcos::crypto::HashType const& _gensisHash) override;
 
@@ -48,7 +44,6 @@ protected:
     virtual void deserializeObject();
 
 private:
-    std::shared_ptr<BlockSyncStatus> m_blockSyncStatus;
     bcos::crypto::HashType m_hash;
     bcos::crypto::HashType m_genesisHash;
 };

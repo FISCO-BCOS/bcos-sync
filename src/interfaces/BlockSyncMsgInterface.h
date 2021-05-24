@@ -13,32 +13,34 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief status for the block sync
- * @file BlockSyncStatueInterface.h
+ * @brief interface for the basic block syncMsg
+ * @file BlockSyncMsgInterface.h
  * @author: yujiechen
- * @date 2021-05-23
+ * @date 2021-05-24
  */
-
 #pragma once
-#include "interfaces/BlockSyncMsgInterface.h"
 #include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
 namespace bcos
 {
 namespace sync
 {
-class BlockSyncStatusInterface : public virtual BlockSyncMsgInterface
+class BlockSyncMsgInterface
 {
 public:
-    using Ptr = std::shared_ptr<BlockSyncStatusInterface>;
-    using ConstPtr = std::shared_ptr<BlockSyncStatusInterface const>;
-    BlockSyncStatusInterface() = default;
-    virtual ~BlockSyncStatusInterface() {}
+    using Ptr = std::shared_ptr<BlockSyncMsgInterface>;
+    BlockSyncMsgInterface() = default;
+    virtual ~BlockSyncMsgInterface() {}
 
-    virtual bcos::crypto::HashType const& hash() const = 0;
-    virtual bcos::crypto::HashType const& genesisHash() const = 0;
+    virtual bytesPointer encode() const = 0;
+    virtual void decode(bytesConstRef _data) = 0;
 
-    virtual void setHash(bcos::crypto::HashType const& _hash) = 0;
-    virtual void setGenesisHash(bcos::crypto::HashType const& _gensisHash) = 0;
+    virtual bcos::protocol::BlockNumber number() const = 0;
+    virtual int32_t packetType() const = 0;
+    virtual int32_t version() const = 0;
+
+    virtual void setNumber(bcos::protocol::BlockNumber _number) = 0;
+    virtual void setPacketType(int32_t packetType) = 0;
+    virtual void setVersion(int32_t _version) = 0;
 };
 }  // namespace sync
 }  // namespace bcos
