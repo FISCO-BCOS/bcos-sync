@@ -31,7 +31,7 @@ namespace sync
 struct BlockCmp
 {
     bool operator()(
-        bcos::protocol::Block::Ptr const& _first, bcos::protocol::Block::Ptr const& _second)
+        bcos::protocol::Block::Ptr const& _first, bcos::protocol::Block::Ptr const& _second) const
     {
         // increase order
         return _first->blockHeader()->number() > _second->blockHeader()->number();

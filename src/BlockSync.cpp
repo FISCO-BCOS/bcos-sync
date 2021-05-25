@@ -19,6 +19,7 @@
  * @date 2021-05-24
  */
 #include "BlockSync.h"
+#include <boost/bind.hpp>
 
 using namespace bcos;
 using namespace bcos::sync;

@@ -26,7 +26,7 @@ namespace bcos
 {
 namespace sync
 {
-class BlockSyncStatusInterface : public virtual BlockSyncMsgInterface
+class BlockSyncStatusInterface : virtual public BlockSyncMsgInterface
 {
 public:
     using Ptr = std::shared_ptr<BlockSyncStatusInterface>;

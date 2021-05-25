@@ -26,11 +26,13 @@ namespace bcos
 {
 namespace sync
 {
-class BlockSyncMsgImpl : public virtual BlockSyncMsgInterface
+class BlockSyncMsgImpl : virtual public BlockSyncMsgInterface
 {
 public:
     using Ptr = std::shared_ptr<BlockSyncMsgImpl>;
     BlockSyncMsgImpl() : m_syncMessage(std::make_shared<BlockSyncMessage>()) {}
+    explicit BlockSyncMsgImpl(bytesConstRef _data) : BlockSyncMsgImpl() { decode(_data); }
+
     ~BlockSyncMsgImpl() override {}
 
     bytesPointer encode() const override { return bcos::protocol::encodePBObject(m_syncMessage); }
