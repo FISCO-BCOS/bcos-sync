@@ -32,5 +32,10 @@ enum BlockSyncPacketType : int32_t
     BlockRequestPacket = 0x01,
     BlockResponsePacket = 0x02,
 };
-}
+enum SyncState : int32_t
+{
+    Idle = 0x00,         //< Initial chain sync complete. Waiting for new packets
+    Downloading = 0x01,  //< Downloading blocks
+};
+}  // namespace sync
 }  // namespace bcos

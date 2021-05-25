@@ -88,6 +88,8 @@ public:
     virtual void deletePeer(bcos::crypto::PublicPtr _peer);
 
     void foreachPeerRandom(std::function<bool(PeerStatus::Ptr)> const& _f) const;
+    void foreachPeer(std::function<bool(PeerStatus::Ptr)> const& _f) const;
+    std::shared_ptr<bcos::crypto::NodeIDs> peers();
 
 protected:
     virtual void updateKnownMaxBlockInfo(BlockSyncStatusInterface::ConstPtr _peerStatus);

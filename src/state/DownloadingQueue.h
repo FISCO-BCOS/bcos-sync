@@ -70,17 +70,25 @@ public:
     // clear queue and buffer
     virtual void clear();
 
-protected:
-    // clear queue
-    virtual void clearQueue();
+    virtual void registerNewBlockHandler(
+        std::function<void(bcos::ledger::LedgerConfig::Ptr)> _newBlockHandler)
+    {
+        m_newBlockHandler = _newBlockHandler;
+    }
 
     // flush m_buffer into queue
     virtual void flushBufferToQueue();
+    virtual void clearExpiredQueueCache();
+
+protected:
+    // clear queue
+    virtual void clearQueue();
+    virtual void clearExpiredCache(BlockQueue& _queue, SharedMutex& _lock);
     virtual bool flushOneShard(BlocksMsgInterface::Ptr _blocksData);
     virtual bool isNewerBlock(bcos::protocol::Block::Ptr _block);
 
     virtual void commitBlock(bcos::protocol::Block::Ptr _block);
-    virtual bool checkBlock(bcos::protocol::Block::Ptr _block);
+    virtual bool checkAndCommitBlock(bcos::protocol::Block::Ptr _block);
     virtual void updateCommitQueue(bcos::protocol::Block::Ptr _block);
     virtual void tryToCommitBlockToLedger();
 
@@ -92,9 +100,10 @@ private:
     BlocksMessageQueuePtr m_blockBuffer;
     mutable SharedMutex x_blockBuffer;
 
-    // TODO: clear expired elment of this queue
     BlockQueue m_commitQueue;
     mutable SharedMutex x_commitQueue;
+
+    std::function<void(bcos::ledger::LedgerConfig::Ptr)> m_newBlockHandler;
 };
 }  // namespace sync
 }  // namespace bcos

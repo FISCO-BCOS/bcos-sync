@@ -38,6 +38,17 @@ public:
     virtual BlockSyncStatusInterface::Ptr createBlockSyncStatusMsg(bytesConstRef _data) = 0;
     virtual BlockSyncStatusInterface::Ptr createBlockSyncStatusMsg(
         BlockSyncMsgInterface::Ptr _msg) = 0;
+    virtual BlockSyncStatusInterface::Ptr createBlockSyncStatusMsg(
+        bcos::protocol::BlockNumber _number, bcos::crypto::HashType const& _hash,
+        bcos::crypto::HashType const& _gensisHash, int32_t _version = 0)
+    {
+        auto statusMsg = createBlockSyncStatusMsg();
+        statusMsg->setVersion(_version);
+        statusMsg->setNumber(_number);
+        statusMsg->setHash(_hash);
+        statusMsg->setGenesisHash(_gensisHash);
+        return statusMsg;
+    }
 
     virtual BlocksMsgInterface::Ptr createBlocksMsg() = 0;
     virtual BlocksMsgInterface::Ptr createBlocksMsg(bytesConstRef _data) = 0;

@@ -19,10 +19,30 @@
  * @date 2021-05-25
  */
 #include "BlockSyncConfig.h"
+#include "utilities/Common.h"
 using namespace bcos;
 using namespace bcos::sync;
 using namespace bcos::crypto;
 using namespace bcos::protocol;
+using namespace bcos::ledger;
+
+void BlockSyncConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
+{
+    resetBlockInfo(_ledgerConfig->blockNumber(), _ledgerConfig->hash());
+    setConsensusNodeList(_ledgerConfig->consensusNodeList());
+    setObserverList(_ledgerConfig->observerNodeList());
+    m_consensus->asyncNotifyNewBlock(_ledgerConfig, [_ledgerConfig](Error::Ptr _error) {
+        if (!_error)
+        {
+            return;
+        }
+        BLKSYNC_LOG(WARNING) << LOG_DESC("asyncNotifyNewBlock to consensus failed")
+                             << LOG_KV("number", _ledgerConfig->blockNumber())
+                             << LOG_KV("hash", _ledgerConfig->hash().abridged())
+                             << LOG_KV("error", _error->errorCode())
+                             << LOG_KV("msg", _error->errorMessage());
+    });
+}
 
 void BlockSyncConfig::setGenesisHash(HashType const& _hash)
 {
@@ -33,13 +53,15 @@ void BlockSyncConfig::setGenesisHash(HashType const& _hash)
     }
 }
 
-void BlockSyncConfig::setBlockNumber(BlockNumber _blockNumber)
+void BlockSyncConfig::resetBlockInfo(BlockNumber _blockNumber, bcos::crypto::HashType const& _hash)
 {
     m_blockNumber = _blockNumber;
+    setHash(_hash);
     m_nextBlock = m_blockNumber + 1;
     if (m_knownHighestNumber < _blockNumber)
     {
         m_knownHighestNumber = _blockNumber;
+        setKnownLatestHash(_hash);
     }
     if (_blockNumber > m_executedBlock)
     {
@@ -47,6 +69,17 @@ void BlockSyncConfig::setBlockNumber(BlockNumber _blockNumber)
     }
 }
 
+HashType const& BlockSyncConfig::hash() const
+{
+    ReadGuard l(x_hash);
+    return m_hash;
+}
+
+void BlockSyncConfig::setHash(HashType const& _hash)
+{
+    WriteGuard l(x_hash);
+    m_hash = _hash;
+}
 
 void BlockSyncConfig::setKnownHighestNumber(BlockNumber _highestNumber)
 {
