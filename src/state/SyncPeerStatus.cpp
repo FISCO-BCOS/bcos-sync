@@ -169,3 +169,24 @@ void SyncPeerStatus::foreachPeerRandom(std::function<bool(PeerStatus::Ptr)> cons
         }
     }
 }
+
+void SyncPeerStatus::foreachPeer(std::function<bool(PeerStatus::Ptr)> const& _f) const
+{
+    ReadGuard l(x_peersStatus);
+    for (auto peer : m_peersStatus)
+    {
+        if (peer.second && !_f(peer.second))
+        {
+            break;
+        }
+    }
+}
+
+std::shared_ptr<NodeIDs> SyncPeerStatus::peers()
+{
+    auto nodeIds = std::make_shared<NodeIDs>();
+    ReadGuard l(x_peersStatus);
+    for (auto& peer : m_peersStatus)
+        nodeIds->emplace_back(peer.first);
+    return nodeIds;
+}

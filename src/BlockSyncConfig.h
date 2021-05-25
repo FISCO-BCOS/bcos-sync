@@ -20,45 +20,56 @@
  */
 #pragma once
 #include "interfaces/BlockSyncMsgFactory.h"
+#include <bcos-framework/interfaces/consensus/ConsensusInterface.h>
 #include <bcos-framework/interfaces/crypto/KeyInterface.h>
 #include <bcos-framework/interfaces/dispatcher/DispatcherInterface.h>
 #include <bcos-framework/interfaces/front/FrontServiceInterface.h>
 #include <bcos-framework/interfaces/ledger/LedgerInterface.h>
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
+#include <bcos-framework/libsync/SyncConfig.h>
 namespace bcos
 {
 namespace sync
 {
-class BlockSyncConfig
+class BlockSyncConfig : public SyncConfig
 {
 public:
     using Ptr = std::shared_ptr<BlockSyncConfig>;
-    BlockSyncConfig(bcos::ledger::LedgerInterface::Ptr _ledger, bcos::crypto::PublicPtr _nodeId,
+    BlockSyncConfig(bcos::crypto::PublicPtr _nodeId, bcos::ledger::LedgerInterface::Ptr _ledger,
         bcos::protocol::BlockFactory::Ptr _blockFactory,
         bcos::front::FrontServiceInterface::Ptr _frontService,
         bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
-        BlockSyncMsgFactory::Ptr _msgFactory)
-      : m_ledger(_ledger),
+        bcos::consensus::ConsensusInterface::Ptr _consensus, BlockSyncMsgFactory::Ptr _msgFactory)
+      : SyncConfig(_nodeId),
+        m_ledger(_ledger),
         m_nodeId(_nodeId),
         m_blockFactory(_blockFactory),
         m_frontService(_frontService),
         m_dispatcher(_dispatcher),
+        m_consensus(_consensus),
         m_msgFactory(_msgFactory)
     {}
+    ~BlockSyncConfig() override {}
 
     bcos::ledger::LedgerInterface::Ptr ledger() { return m_ledger; }
     bcos::crypto::PublicPtr nodeId() { return m_nodeId; }
     bcos::protocol::BlockFactory::Ptr blockFactory() { return m_blockFactory; }
     bcos::front::FrontServiceInterface::Ptr frontService() { return m_frontService; }
     bcos::dispatcher::DispatcherInterface::Ptr dispatcher() { return m_dispatcher; }
+    bcos::consensus::ConsensusInterface::Ptr consensus() { return m_consensus; }
+
     BlockSyncMsgFactory::Ptr msgFactory() { return m_msgFactory; }
+    virtual void resetConfig(bcos::ledger::LedgerConfig::Ptr _ledgerConfig);
 
     bcos::crypto::HashType const& genesisHash() const { return m_genesisHash; }
     void setGenesisHash(bcos::crypto::HashType const& _hash);
 
     bcos::protocol::BlockNumber blockNumber() const { return m_blockNumber; }
+    bcos::crypto::HashType const& hash() const;
+
     bcos::protocol::BlockNumber nextBlock() const { return m_nextBlock; }
-    void setBlockNumber(bcos::protocol::BlockNumber _blockNumber);
+    void resetBlockInfo(
+        bcos::protocol::BlockNumber _blockNumber, bcos::crypto::HashType const& _hash);
 
     void setKnownHighestNumber(bcos::protocol::BlockNumber _highestNumber);
     bcos::protocol::BlockNumber knownHighestNumber() { return m_knownHighestNumber; }
@@ -82,18 +93,24 @@ public:
     void setExecutedBlock(bcos::protocol::BlockNumber _executedBlock);
     bcos::protocol::BlockNumber executedBlock() { return m_executedBlock; }
 
+protected:
+    void setHash(bcos::crypto::HashType const& _hash);
+
 private:
     bcos::ledger::LedgerInterface::Ptr m_ledger;
     bcos::crypto::PublicPtr m_nodeId;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
     bcos::front::FrontServiceInterface::Ptr m_frontService;
     bcos::dispatcher::DispatcherInterface::Ptr m_dispatcher;
+    bcos::consensus::ConsensusInterface::Ptr m_consensus;
     BlockSyncMsgFactory::Ptr m_msgFactory;
 
     bcos::crypto::HashType m_genesisHash;
     std::atomic<bcos::protocol::BlockNumber> m_blockNumber = {0};
     std::atomic<bcos::protocol::BlockNumber> m_nextBlock = {0};
     std::atomic<bcos::protocol::BlockNumber> m_executedBlock = {0};
+    bcos::crypto::HashType m_hash;
+    mutable SharedMutex x_hash;
 
     std::atomic<bcos::protocol::BlockNumber> m_knownHighestNumber = {0};
     bcos::crypto::HashType m_knownLatestHash;

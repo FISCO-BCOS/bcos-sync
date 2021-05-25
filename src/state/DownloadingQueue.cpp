@@ -170,7 +170,9 @@ void DownloadingQueue::clearFullQueueIfNotHas(BlockNumber _blockNumber)
         ReadGuard l(x_blocks);
         if (m_blocks.size() == m_config->maxDownloadingBlockQueueSize() &&
             m_blocks.top()->blockHeader()->number() > _blockNumber)
+        {
             needClear = true;
+        }
     }
     if (needClear)
     {
@@ -222,9 +224,56 @@ void DownloadingQueue::applyBlock(Block::Ptr _block)
         });
 }
 
-// TODO: check the block
-bool DownloadingQueue::checkBlock(bcos::protocol::Block::Ptr)
+bool DownloadingQueue::checkAndCommitBlock(bcos::protocol::Block::Ptr _block)
 {
+    // check the block number
+    if (_block->blockHeader()->number() != m_config->nextBlock())
+    {
+        BLKSYNC_LOG(WARNING) << LOG_BADGE("Download") << LOG_BADGE("BlockSync: checkBlock")
+                             << LOG_DESC("Ignore illegal block")
+                             << LOG_KV("reason", "number illegal")
+                             << LOG_KV("thisNumber", _block->blockHeader()->number())
+                             << LOG_KV("currentNumber", m_config->blockNumber());
+        m_config->setExecutedBlock(m_config->blockNumber());
+        return false;
+    }
+    auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
+    m_config->consensus()->asyncCheckBlock(_block, [self, _block](Error::Ptr _error, bool _ret) {
+        try
+        {
+            auto downloadQueue = self.lock();
+            if (!downloadQueue)
+            {
+                return;
+            }
+            if (_error)
+            {
+                BLKSYNC_LOG(WARNING)
+                    << LOG_DESC("asyncCheckBlock error")
+                    << LOG_KV("blockNumber", _block->blockHeader()->number())
+                    << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                    << LOG_KV("code", _error->errorCode()) << LOG_KV("msg", _error->errorMessage());
+                downloadQueue->m_config->setExecutedBlock(_block->blockHeader()->number() - 1);
+                return;
+            }
+            if (_ret)
+            {
+                downloadQueue->commitBlock(_block);
+                return;
+            }
+            downloadQueue->m_config->setExecutedBlock(_block->blockHeader()->number() - 1);
+            BLKSYNC_LOG(WARNING) << LOG_DESC("asyncCheckBlock failed")
+                                 << LOG_KV("blockNumber", _block->blockHeader()->number())
+                                 << LOG_KV("hash", _block->blockHeader()->hash().abridged());
+        }
+        catch (std::exception const& e)
+        {
+            BLKSYNC_LOG(WARNING) << LOG_DESC("asyncCheckBlock exception")
+                                 << LOG_KV("blockNumber", _block->blockHeader()->number())
+                                 << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                                 << LOG_KV("error", boost::diagnostic_information(e));
+        }
+    });
     return true;
 }
 
@@ -247,9 +296,9 @@ void DownloadingQueue::tryToCommitBlockToLedger()
     }
     // try to commit the block
     auto block = m_commitQueue.top();
-    if (block->blockHeader()->number() == m_config->nextBlock() && checkBlock(block))
+    if (block->blockHeader()->number() == m_config->nextBlock())
     {
-        commitBlock(block);
+        checkAndCommitBlock(block);
         m_commitQueue.pop();
     }
 }
@@ -261,16 +310,7 @@ void DownloadingQueue::commitBlock(Block::Ptr _block)
                       << LOG_KV("hash", _block->blockHeader()->hash().abridged());
     auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
     m_config->ledger()->asyncCommitBlock(
-        _block->blockHeader(), [self, _block](Error::Ptr _error, LedgerConfig::Ptr) {
-            if (_error != nullptr)
-            {
-                BLKSYNC_LOG(WARNING) << LOG_DESC("commitBlock failed")
-                                     << LOG_KV("number", _block->blockHeader()->number())
-                                     << LOG_KV("hash", _block->blockHeader()->hash().abridged())
-                                     << LOG_KV("code", _error->errorCode())
-                                     << LOG_KV("message", _error->errorMessage());
-                return;
-            }
+        _block->blockHeader(), [self, _block](Error::Ptr _error, LedgerConfig::Ptr _ledgerConfig) {
             try
             {
                 auto downloadingQueue = self.lock();
@@ -278,7 +318,23 @@ void DownloadingQueue::commitBlock(Block::Ptr _block)
                 {
                     return;
                 }
-                // TODO: reset the config for the consensus and the blockSync module
+                if (_error != nullptr)
+                {
+                    downloadingQueue->m_config->setExecutedBlock(
+                        _block->blockHeader()->number() - 1);
+                    BLKSYNC_LOG(WARNING) << LOG_DESC("commitBlock failed")
+                                         << LOG_KV("number", _block->blockHeader()->number())
+                                         << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                                         << LOG_KV("code", _error->errorCode())
+                                         << LOG_KV("message", _error->errorMessage());
+                    return;
+                }
+
+
+                // reset the config for the consensus and the blockSync module
+                // broadcast the status to all the peers
+                // clear the expired cache
+                downloadingQueue->m_newBlockHandler(_ledgerConfig);
                 // try to commit the next block
                 downloadingQueue->tryToCommitBlockToLedger();
                 BLKSYNC_LOG(WARNING) << LOG_DESC("commitBlock success")
@@ -293,4 +349,19 @@ void DownloadingQueue::commitBlock(Block::Ptr _block)
                                      << LOG_KV("error", boost::diagnostic_information(e));
             }
         });
+}
+
+void DownloadingQueue::clearExpiredQueueCache()
+{
+    clearExpiredCache(m_blocks, x_blocks);
+    clearExpiredCache(m_commitQueue, x_commitQueue);
+}
+
+void DownloadingQueue::clearExpiredCache(BlockQueue& _queue, SharedMutex& _lock)
+{
+    WriteGuard l(_lock);
+    while (_queue.top()->blockHeader()->number() <= m_config->blockNumber())
+    {
+        _queue.pop();
+    }
 }

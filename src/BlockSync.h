@@ -20,9 +20,10 @@
  */
 #pragma once
 #include "BlockSyncConfig.h"
-#include "interfaces/BlockSyncInterface.h"
 #include "state/DownloadingQueue.h"
 #include "state/SyncPeerStatus.h"
+#include <bcos-framework/interfaces/sync/BlockSyncInterface.h>
+#include <bcos-framework/libutilities/Timer.h>
 #include <bcos-framework/libutilities/Worker.h>
 namespace bcos
 {
@@ -34,45 +35,64 @@ class BlockSync : public BlockSyncInterface,
 {
 public:
     using Ptr = std::shared_ptr<BlockSync>;
-    explicit BlockSync(BlockSyncConfig::Ptr _config);
+    BlockSync(BlockSyncConfig::Ptr _config, unsigned _idleWaitMs = 200);
     ~BlockSync() override {}
 
     void start() override;
     void stop() override;
 
     // called by the frontService to dispatch message
-    // TODO: move this interface into bcos-framework
-    virtual void asyncNotifyBlockSyncMessage(Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
+    void asyncNotifyBlockSyncMessage(Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
         bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse,
-        std::function<void(Error::Ptr _error)> _onRecv);
+        std::function<void(Error::Ptr _error)> _onRecv) override;
+
+    void asyncNotifyNewBlock(bcos::ledger::LedgerConfig::Ptr _ledgerConfig,
+        std::function<void(Error::Ptr)> _onRecv) override;
 
 protected:
+    void executeWorker() override;
+    void workerProcessLoop() override;
     // for message handle
     virtual void onPeerStatus(bcos::crypto::NodeIDPtr _nodeID, BlockSyncMsgInterface::Ptr _syncMsg);
     virtual void onPeerBlocks(bcos::crypto::NodeIDPtr _nodeID, BlockSyncMsgInterface::Ptr _syncMsg);
     virtual void onPeerBlocksRequest(
         bcos::crypto::NodeIDPtr _nodeID, BlockSyncMsgInterface::Ptr _syncMsg);
 
-
+    virtual bool shouldSyncing();
     virtual bool isSyncing();
-    // TODO: timeout logic
     virtual void tryToRequestBlocks();
+    virtual void onDownloadTimeout();
     // block execute and submit
     virtual void maintainDownloadingQueue();
-    // TODO: maintainPeersConnection
+    virtual void maintainDownloadingBuffer();
+    // maintain connections
     virtual void maintainPeersConnection();
+    // block requests
     virtual void maintainBlockRequest();
+    // broadcast sync status
+    virtual void broadcastSyncStatus();
+
+    virtual void onNewBlock(bcos::ledger::LedgerConfig::Ptr _ledgerConfig);
+
+    virtual void downloadFinish();
 
 private:
     void requestBlocks(bcos::protocol::BlockNumber _from, bcos::protocol::BlockNumber _to);
     void fetchAndSendBlock(bcos::crypto::PublicPtr _peer, bcos::protocol::BlockNumber _number);
+    void printSyncInfo();
 
 private:
     BlockSyncConfig::Ptr m_config;
     SyncPeerStatus::Ptr m_syncStatus;
     DownloadingQueue::Ptr m_downloadingQueue;
 
+    bcos::ThreadPool::Ptr m_downloadBlockProcessor = nullptr;
+    bcos::ThreadPool::Ptr m_sendBlockProcessor = nullptr;
+    std::shared_ptr<Timer> m_downloadingTimer;
+
     std::atomic_bool m_running = {false};
+    std::atomic<SyncState> m_state = {SyncState::Idle};
+    std::atomic<bcos::protocol::BlockNumber> m_maxRequestNumber = {0};
 
     boost::condition_variable m_signalled;
     boost::mutex x_signalled;

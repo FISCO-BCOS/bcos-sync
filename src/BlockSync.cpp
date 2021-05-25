@@ -26,12 +26,17 @@ using namespace bcos::protocol;
 using namespace bcos::crypto;
 using namespace bcos::ledger;
 
-BlockSync::BlockSync(BlockSyncConfig::Ptr _config)
-  : Worker("syncWorker", 0),
+BlockSync::BlockSync(BlockSyncConfig::Ptr _config, unsigned _idleWaitMs)
+  : Worker("syncWorker", _idleWaitMs),
     m_config(_config),
-    m_syncStatus(std::make_shared<SyncPeerStatus>(_config))
+    m_syncStatus(std::make_shared<SyncPeerStatus>(_config)),
+    m_downloadingQueue(std::make_shared<DownloadingQueue>(_config))
 {
-    // TODO: create the timer and add the timeout logic
+    m_downloadBlockProcessor = std::make_shared<bcos::ThreadPool>("Download", 1);
+    m_sendBlockProcessor = std::make_shared<bcos::ThreadPool>("SyncSend", 1);
+    m_downloadingTimer = std::make_shared<Timer>(m_config->downloadTimeout());
+    m_downloadingTimer->registerTimeoutHandler(boost::bind(&BlockSync::onDownloadTimeout, this));
+    m_downloadingQueue->registerNewBlockHandler(boost::bind(&BlockSync::onNewBlock, this, _1));
 }
 
 void BlockSync::start()
@@ -62,6 +67,111 @@ void BlockSync::stop()
         stopWorking();
         terminate();
     }
+}
+
+void BlockSync::printSyncInfo()
+{
+    auto peers = m_syncStatus->peers();
+    std::string peer_str;
+    for (auto const& peer : *peers)
+    {
+        peer_str += peer->shortHex() + "/";
+    }
+    BLKSYNC_LOG(TRACE) << "\n[Sync Info] --------------------------------------------\n"
+                       << "            IsSyncing:    " << isSyncing() << "\n"
+                       << "            Block number: " << m_config->blockNumber() << "\n"
+                       << "            Block hash:   " << m_config->hash().abridged() << "\n"
+                       << "            Genesis hash: " << m_config->genesisHash().abridged() << "\n"
+                       << "            Peers size:   " << peers->size() << "\n"
+                       << "[Peer Info] --------------------------------------------\n"
+                       << "    Host: " << m_config->nodeId()->shortHex() << "\n"
+                       << "    Peer: " << peer_str << "\n"
+                       << "            --------------------------------------------";
+}
+
+void BlockSync::executeWorker()
+{
+    if (isSyncing())
+    {
+        printSyncInfo();
+    }
+    // maintain the connections between observers/sealers
+    maintainPeersConnection();
+    m_downloadBlockProcessor->enqueue([this]() {
+        try
+        {
+            // flush downloaded buffer into downloading queue
+            maintainDownloadingBuffer();
+            maintainDownloadingQueue();
+
+            // send block-download-request to peers if this node is behind others
+            tryToRequestBlocks();
+        }
+        catch (std::exception const& e)
+        {
+            BLKSYNC_LOG(ERROR) << LOG_DESC(
+                                      "maintainDownloadingQueue or maintainPeersStatus exceptioned")
+                               << LOG_KV("errorInfo", boost::diagnostic_information(e));
+        }
+    });
+    // send block to other nodes
+    m_sendBlockProcessor->enqueue([this]() {
+        try
+        {
+            maintainBlockRequest();
+        }
+        catch (std::exception const& e)
+        {
+            BLKSYNC_LOG(ERROR) << LOG_DESC("maintainBlockRequest exceptioned")
+                               << LOG_KV("errorInfo", boost::diagnostic_information(e));
+        }
+    });
+}
+
+void BlockSync::workerProcessLoop()
+{
+    while (workerState() == WorkerState::Started)
+    {
+        executeWorker();
+        if (idleWaitMs())
+        {
+            boost::unique_lock<boost::mutex> l(x_signalled);
+            m_signalled.wait_for(l, boost::chrono::milliseconds(idleWaitMs()));
+        }
+    }
+}
+
+bool BlockSync::shouldSyncing()
+{
+    if (m_config->blockNumber() >= m_config->knownHighestNumber())
+    {
+        return false;
+    }
+    if (m_config->executedBlock() >= m_config->knownHighestNumber())
+    {
+        return false;
+    }
+    return true;
+}
+
+bool BlockSync::isSyncing()
+{
+    return (m_state == SyncState::Downloading);
+}
+
+void BlockSync::maintainDownloadingBuffer()
+{
+    if (m_downloadingQueue->size() == 0)
+    {
+        return;
+    }
+    if (!shouldSyncing())
+    {
+        m_downloadingQueue->clear();
+        return;
+    }
+    m_downloadingQueue->clearFullQueueIfNotHas(m_config->nextBlock());
+    m_downloadingQueue->flushBufferToQueue();
 }
 
 void BlockSync::asyncNotifyBlockSyncMessage(Error::Ptr _error, NodeIDPtr _nodeID,
@@ -115,10 +225,28 @@ void BlockSync::asyncNotifyBlockSyncMessage(Error::Ptr _error, NodeIDPtr _nodeID
     _onRecv(nullptr);
 }
 
+void BlockSync::asyncNotifyNewBlock(
+    LedgerConfig::Ptr _ledgerConfig, std::function<void(Error::Ptr)> _onRecv)
+{
+    BLKSYNC_LOG(DEBUG) << LOG_DESC("asyncNotifyNewBlock: receive new block info")
+                       << LOG_KV("number", _ledgerConfig->blockNumber())
+                       << LOG_KV("hash", _ledgerConfig->hash().abridged());
+    onNewBlock(_ledgerConfig);
+    _onRecv(nullptr);
+}
+
+void BlockSync::onNewBlock(bcos::ledger::LedgerConfig::Ptr _ledgerConfig)
+{
+    m_config->resetConfig(_ledgerConfig);
+    broadcastSyncStatus();
+    m_downloadingQueue->clearExpiredQueueCache();
+}
+
 void BlockSync::onPeerStatus(NodeIDPtr _nodeID, BlockSyncMsgInterface::Ptr _syncMsg)
 {
     auto statusMsg = m_config->msgFactory()->createBlockSyncStatusMsg(_syncMsg);
     m_syncStatus->updatePeerStatus(_nodeID, statusMsg);
+    m_signalled.notify_all();
 }
 
 void BlockSync::onPeerBlocks(NodeIDPtr _nodeID, BlockSyncMsgInterface::Ptr _syncMsg)
@@ -128,7 +256,7 @@ void BlockSync::onPeerBlocks(NodeIDPtr _nodeID, BlockSyncMsgInterface::Ptr _sync
                        << LOG_DESC("Receive peer block packet")
                        << LOG_KV("peer", _nodeID->shortHex());
     m_downloadingQueue->push(blockMsg);
-    // TODO: notify worker to handle the request
+    m_signalled.notify_all();
 }
 
 void BlockSync::onPeerBlocksRequest(NodeIDPtr _nodeID, BlockSyncMsgInterface::Ptr _syncMsg)
@@ -142,13 +270,34 @@ void BlockSync::onPeerBlocksRequest(NodeIDPtr _nodeID, BlockSyncMsgInterface::Pt
     if (peerStatus)
     {
         peerStatus->downloadRequests()->push(blockRequest->number(), blockRequest->size());
-        // TODO: notify worker to handle the request
+        m_signalled.notify_all();
     }
+}
+
+void BlockSync::onDownloadTimeout()
+{
+    // stop the timer and reset the state to idle
+    m_downloadingTimer->stop();
+    m_state = SyncState::Idle;
+}
+
+void BlockSync::downloadFinish()
+{
+    m_downloadingTimer->stop();
+    m_state = SyncState::Idle;
 }
 
 void BlockSync::tryToRequestBlocks()
 {
-    // TODO: add timeout logic
+    if (m_maxRequestNumber <= m_config->blockNumber() ||
+        m_maxRequestNumber <= m_config->executedBlock())
+    {
+        downloadFinish();
+    }
+    if (!shouldSyncing() || isSyncing())
+    {
+        return;
+    }
     auto requestToNumber = m_config->knownHighestNumber();
     auto topBlock = m_downloadingQueue->top();
     // The block in BlockQueue is not nextBlock(the BlockQueue missing some block)
@@ -168,6 +317,9 @@ void BlockSync::tryToRequestBlocks()
 
 void BlockSync::requestBlocks(BlockNumber _from, BlockNumber _to)
 {
+    m_state = SyncState::Downloading;
+    m_downloadingTimer->start();
+
     auto blockSizePerShard = m_config->maxRequestBlocks();
     auto shardNumber = (_to - _from + blockSizePerShard - 1) / blockSizePerShard;
     size_t shard = 0;
@@ -191,11 +343,12 @@ void BlockSync::requestBlocks(BlockNumber _from, BlockNumber _to)
             // found a peer
             findPeer = true;
             auto blockRequest = m_config->msgFactory()->createBlockRequest();
-            blockRequest->setNumber(from);
             blockRequest->setSize(to - from + 1);
             auto encodedData = blockRequest->encode();
             m_config->frontService()->asyncSendMessageByNodeID(
                 ModuleID::BlockSync, _p->nodeId(), ref(*encodedData), 0, nullptr);
+
+            m_maxRequestNumber = std::max(m_maxRequestNumber.load(), to);
 
             BLKSYNC_LOG(INFO) << LOG_BADGE("Download") << LOG_BADGE("Request")
                               << LOG_DESC("Request blocks") << LOG_KV("from", from)
@@ -218,13 +371,17 @@ void BlockSync::requestBlocks(BlockNumber _from, BlockNumber _to)
 
 void BlockSync::maintainDownloadingQueue()
 {
-    // TODO: wait operation
-    if (m_config->blockNumber() >= m_config->knownHighestNumber())
+    if (!shouldSyncing())
     {
         m_downloadingQueue->clear();
+        downloadFinish();
         return;
     }
     auto block = m_downloadingQueue->top();
+    if (!block)
+    {
+        return;
+    }
     if (block->blockHeader()->number() > m_config->nextBlock())
     {
         BLKSYNC_LOG(DEBUG) << LOG_DESC("Discontinuous block")
@@ -242,6 +399,7 @@ void BlockSync::maintainDownloadingQueue()
     block = m_downloadingQueue->top();
     while (block->blockHeader()->number() == (executedBlock + 1))
     {
+        m_state = SyncState::Downloading;
         auto blockNumber = block->blockHeader()->number();
         m_downloadingQueue->applyBlock(block);
         m_config->setExecutedBlock(blockNumber);
@@ -305,6 +463,7 @@ void BlockSync::fetchAndSendBlock(PublicPtr _peer, BlockNumber _number)
                 bytesPointer blockData = std::make_shared<bytes>();
                 _block->encode(*blockData);
                 blocksReq->appendBlockData(std::move(*blockData));
+                blocksReq->setNumber(_number);
                 config->frontService()->asyncSendMessageByNodeID(
                     ModuleID::BlockSync, _peer, ref(*(blocksReq->encode())), 0, nullptr);
                 BLKSYNC_LOG(DEBUG)
@@ -320,4 +479,63 @@ void BlockSync::fetchAndSendBlock(PublicPtr _peer, BlockNumber _number)
         });
 }
 
-void BlockSync::maintainPeersConnection() {}
+void BlockSync::maintainPeersConnection()
+{
+    if (!m_config->existsInGroup())
+    {
+        return;
+    }
+    // Delete uncorrelated peers
+    NodeIDs peersToDelete;
+    m_syncStatus->foreachPeer([&](PeerStatus::Ptr _p) {
+        if (!m_config->existsInGroup(_p->nodeId()) && m_config->blockNumber() >= _p->number())
+        {
+            // Only delete outsider whose number is smaller than myself
+            peersToDelete.emplace_back(_p->nodeId());
+        }
+        return true;
+    });
+    // delete the invalid peer
+    for (auto node : peersToDelete)
+    {
+        m_syncStatus->deletePeer(node);
+    }
+    // Add new peers
+    auto groupNodeList = m_config->groupNodeList();
+    for (auto node : groupNodeList)
+    {
+        if (m_syncStatus->hashPeer(node))
+        {
+            continue;
+        }
+        // create a peer
+        auto newPeerStatus = m_config->msgFactory()->createBlockSyncStatusMsg(
+            m_config->blockNumber(), m_config->hash(), m_config->genesisHash());
+        m_syncStatus->updatePeerStatus(m_config->nodeId(), newPeerStatus);
+        auto encodedData = newPeerStatus->encode();
+        m_config->frontService()->asyncSendMessageByNodeID(
+            ModuleID::BlockSync, node, ref(*encodedData), 0, nullptr);
+        BLKSYNC_LOG(DEBUG) << LOG_BADGE("Status") << LOG_DESC("Send current status to new peer")
+                           << LOG_KV("number", newPeerStatus->number())
+                           << LOG_KV("genesisHash", newPeerStatus->genesisHash().abridged())
+                           << LOG_KV("currentHash", newPeerStatus->hash().abridged())
+                           << LOG_KV("peer", node->shortHex());
+    }
+}
+
+void BlockSync::broadcastSyncStatus()
+{
+    m_syncStatus->foreachPeer([&](PeerStatus::Ptr _p) {
+        auto statusMsg = m_config->msgFactory()->createBlockSyncStatusMsg(
+            m_config->blockNumber(), m_config->hash(), m_config->genesisHash());
+        auto encodedData = statusMsg->encode();
+        m_config->frontService()->asyncSendMessageByNodeID(
+            ModuleID::BlockSync, _p->nodeId(), ref(*encodedData), 0, nullptr);
+        BLKSYNC_LOG(DEBUG) << LOG_BADGE("Status") << LOG_DESC("Send current status")
+                           << LOG_KV("number", statusMsg->number())
+                           << LOG_KV("genesisHash", statusMsg->genesisHash().abridged())
+                           << LOG_KV("currentHash", statusMsg->hash().abridged())
+                           << LOG_KV("peer", _p->nodeId()->shortHex());
+        return true;
+    });
+}
