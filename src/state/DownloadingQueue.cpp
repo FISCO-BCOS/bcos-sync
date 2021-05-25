@@ -25,6 +25,7 @@ using namespace std;
 using namespace bcos;
 using namespace bcos::protocol;
 using namespace bcos::sync;
+using namespace bcos::ledger;
 
 void DownloadingQueue::push(BlocksMsgInterface::Ptr _blocksData)
 {
@@ -32,9 +33,9 @@ void DownloadingQueue::push(BlocksMsgInterface::Ptr _blocksData)
     UpgradableGuard l(x_blockBuffer);
     if (m_blockBuffer->size() >= m_config->maxDownloadingBlockQueueSize())
     {
-        BLOCK_SYNC_LOG(WARNING) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
-                                << LOG_DESC("DownloadingBlockQueueBuffer is full")
-                                << LOG_KV("queueSize", m_blockBuffer->size());
+        BLKSYNC_LOG(WARNING) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
+                             << LOG_DESC("DownloadingBlockQueueBuffer is full")
+                             << LOG_KV("queueSize", m_blockBuffer->size());
         return;
     }
     UpgradeGuard ul(l);
@@ -113,15 +114,15 @@ bool DownloadingQueue::flushOneShard(BlocksMsgInterface::Ptr _blocksData)
     WriteGuard l(x_blocks);
     if (m_blocks.size() >= m_config->maxDownloadingBlockQueueSize())
     {
-        BLOCK_SYNC_LOG(DEBUG) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
-                              << LOG_DESC("DownloadingBlockQueueBuffer is full")
-                              << LOG_KV("queueSize", m_blocks.size());
+        BLKSYNC_LOG(DEBUG) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
+                           << LOG_DESC("DownloadingBlockQueueBuffer is full")
+                           << LOG_KV("queueSize", m_blocks.size());
 
         return false;
     }
-    BLOCK_SYNC_LOG(TRACE) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
-                          << LOG_DESC("Decoding block buffer")
-                          << LOG_KV("blocksShardSize", _blocksData->blocksSize());
+    BLKSYNC_LOG(TRACE) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
+                       << LOG_DESC("Decoding block buffer")
+                       << LOG_KV("blocksShardSize", _blocksData->blocksSize());
     size_t blocksSize = _blocksData->blocksSize();
     size_t successCnt = 0;
     for (size_t i = 0; i < blocksSize; i++)
@@ -138,17 +139,17 @@ bool DownloadingQueue::flushOneShard(BlocksMsgInterface::Ptr _blocksData)
         }
         catch (std::exception const& e)
         {
-            BLOCK_SYNC_LOG(WARNING)
-                << LOG_BADGE("Download") << LOG_BADGE("BlockSync") << LOG_DESC("Invalid block data")
-                << LOG_KV("reason", boost::diagnostic_information(e))
-                << LOG_KV("blockDataSize", _blocksData->blockData(i).size());
+            BLKSYNC_LOG(WARNING) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
+                                 << LOG_DESC("Invalid block data")
+                                 << LOG_KV("reason", boost::diagnostic_information(e))
+                                 << LOG_KV("blockDataSize", _blocksData->blockData(i).size());
             continue;
         }
     }
-    BLOCK_SYNC_LOG(DEBUG) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
-                          << LOG_DESC("Flush buffer to block queue") << LOG_KV("import", successCnt)
-                          << LOG_KV("rcv", blocksSize)
-                          << LOG_KV("downloadBlockQueue", m_blocks.size());
+    BLKSYNC_LOG(DEBUG) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
+                       << LOG_DESC("Flush buffer to block queue") << LOG_KV("import", successCnt)
+                       << LOG_KV("rcv", blocksSize)
+                       << LOG_KV("downloadBlockQueue", m_blocks.size());
     return true;
 }
 
@@ -175,4 +176,121 @@ void DownloadingQueue::clearFullQueueIfNotHas(BlockNumber _blockNumber)
     {
         clearQueue();
     }
+}
+
+void DownloadingQueue::applyBlock(Block::Ptr _block)
+{
+    BLKSYNC_LOG(INFO) << LOG_BADGE("Download") << LOG_DESC("BlockSync: applyBlock")
+                      << LOG_KV("number", _block->blockHeader()->number())
+                      << LOG_KV("hash", _block->blockHeader()->hash().abridged());
+    auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
+    m_config->dispatcher()->asyncExecuteBlock(
+        _block, true, [self, _block](Error::Ptr _error, protocol::BlockHeader::Ptr) {
+            try
+            {
+                auto downloadQueue = self.lock();
+                if (!downloadQueue)
+                {
+                    return;
+                }
+                // execute/verify exception
+                if (_error != nullptr)
+                {
+                    BLKSYNC_LOG(WARNING)
+                        << LOG_DESC("applyBlock: executing the synced block failed")
+                        << LOG_KV("number", _block->blockHeader()->number())
+                        << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                        << LOG_KV("errorCode", _error->errorCode())
+                        << LOG_KV("errorMessage", _error->errorMessage());
+                    auto config = downloadQueue->m_config;
+                    auto executedBlock =
+                        std::max(config->blockNumber(), _block->blockHeader()->number() - 1);
+                    // reset the executed number
+                    downloadQueue->m_config->setExecutedBlock(executedBlock);
+                    return;
+                }
+                // verify and comit the block
+                downloadQueue->updateCommitQueue(_block);
+            }
+            catch (std::exception const& e)
+            {
+                BLKSYNC_LOG(WARNING) << LOG_DESC("applyBlock exception")
+                                     << LOG_KV("number", _block->blockHeader()->number())
+                                     << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                                     << LOG_KV("error", boost::diagnostic_information(e));
+            }
+        });
+}
+
+// TODO: check the block
+bool DownloadingQueue::checkBlock(bcos::protocol::Block::Ptr)
+{
+    return true;
+}
+
+void DownloadingQueue::updateCommitQueue(Block::Ptr _block)
+{
+    {
+        WriteGuard l(x_commitQueue);
+        m_commitQueue.push(_block);
+    }
+    tryToCommitBlockToLedger();
+}
+
+void DownloadingQueue::tryToCommitBlockToLedger()
+{
+    WriteGuard l(x_commitQueue);
+    // remove expired block
+    while (m_commitQueue.top()->blockHeader()->number() <= m_config->blockNumber())
+    {
+        m_commitQueue.pop();
+    }
+    // try to commit the block
+    auto block = m_commitQueue.top();
+    if (block->blockHeader()->number() == m_config->nextBlock() && checkBlock(block))
+    {
+        commitBlock(block);
+        m_commitQueue.pop();
+    }
+}
+
+void DownloadingQueue::commitBlock(Block::Ptr _block)
+{
+    BLKSYNC_LOG(INFO) << LOG_DESC("commitBlock: executing the synced block failed")
+                      << LOG_KV("number", _block->blockHeader()->number())
+                      << LOG_KV("hash", _block->blockHeader()->hash().abridged());
+    auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
+    m_config->ledger()->asyncCommitBlock(
+        _block->blockHeader(), [self, _block](Error::Ptr _error, LedgerConfig::Ptr) {
+            if (_error != nullptr)
+            {
+                BLKSYNC_LOG(WARNING) << LOG_DESC("commitBlock failed")
+                                     << LOG_KV("number", _block->blockHeader()->number())
+                                     << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                                     << LOG_KV("code", _error->errorCode())
+                                     << LOG_KV("message", _error->errorMessage());
+                return;
+            }
+            try
+            {
+                auto downloadingQueue = self.lock();
+                if (!downloadingQueue)
+                {
+                    return;
+                }
+                // TODO: reset the config for the consensus and the blockSync module
+                // try to commit the next block
+                downloadingQueue->tryToCommitBlockToLedger();
+                BLKSYNC_LOG(WARNING) << LOG_DESC("commitBlock success")
+                                     << LOG_KV("number", _block->blockHeader()->number())
+                                     << LOG_KV("hash", _block->blockHeader()->hash().abridged());
+            }
+            catch (std::exception const& e)
+            {
+                BLKSYNC_LOG(WARNING) << LOG_DESC("commitBlock exception")
+                                     << LOG_KV("number", _block->blockHeader()->number())
+                                     << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                                     << LOG_KV("error", boost::diagnostic_information(e));
+            }
+        });
 }

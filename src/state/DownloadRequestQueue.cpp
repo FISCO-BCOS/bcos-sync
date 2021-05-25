@@ -31,19 +31,19 @@ void DownloadRequestQueue::push(BlockNumber _fromNumber, size_t _size)
     // Note: the requester must has retry logic
     if (m_reqQueue.size() >= m_config->maxDownloadRequestQueueSize())
     {
-        BLOCK_SYNC_LOG(DEBUG) << LOG_BADGE("Download") << LOG_BADGE("Request")
-                              << LOG_DESC("Drop request for reqQueue full")
-                              << LOG_KV("reqQueueSize", m_reqQueue.size())
-                              << LOG_KV("fromNumber", _fromNumber) << LOG_KV("size", _size)
-                              << LOG_KV("nodeId", m_config->nodeId()->shortHex());
+        BLKSYNC_LOG(DEBUG) << LOG_BADGE("Download") << LOG_BADGE("Request")
+                           << LOG_DESC("Drop request for reqQueue full")
+                           << LOG_KV("reqQueueSize", m_reqQueue.size())
+                           << LOG_KV("fromNumber", _fromNumber) << LOG_KV("size", _size)
+                           << LOG_KV("nodeId", m_config->nodeId()->shortHex());
         return;
     }
     UpgradeGuard ul(l);
     m_reqQueue.push(std::make_shared<DownloadRequest>(_fromNumber, _size));
-    BLOCK_SYNC_LOG(DEBUG) << LOG_BADGE("Download") << LOG_BADGE("Request")
-                          << LOG_DESC("Push request in reqQueue req") << LOG_KV("from", _fromNumber)
-                          << LOG_KV("to", _fromNumber + _size - 1)
-                          << LOG_KV("peer", m_config->nodeId()->shortHex());
+    BLKSYNC_LOG(DEBUG) << LOG_BADGE("Download") << LOG_BADGE("Request")
+                       << LOG_DESC("Push request in reqQueue req") << LOG_KV("from", _fromNumber)
+                       << LOG_KV("to", _fromNumber + _size - 1)
+                       << LOG_KV("peer", m_config->nodeId()->shortHex());
 }
 
 DownloadRequest::Ptr DownloadRequestQueue::topAndPop()
@@ -72,9 +72,9 @@ DownloadRequest::Ptr DownloadRequestQueue::topAndPop()
         size = std::max(size, (size_t)(topReq->fromNumber() + topReq->size() - fromNumber));
         m_reqQueue.pop();
     }
-    BLOCK_SYNC_LOG(TRACE) << LOG_BADGE("Download") << LOG_BADGE("Request")
-                          << LOG_DESC("Pop reqQueue top req") << LOG_KV("from", fromNumber)
-                          << LOG_KV("to", fromNumber + size - 1);
+    BLKSYNC_LOG(TRACE) << LOG_BADGE("Download") << LOG_BADGE("Request")
+                       << LOG_DESC("Pop reqQueue top req") << LOG_KV("from", fromNumber)
+                       << LOG_KV("to", fromNumber + size - 1);
     return std::make_shared<DownloadRequest>(fromNumber, size);
 }
 

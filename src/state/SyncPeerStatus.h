@@ -40,7 +40,7 @@ public:
 
     virtual ~PeerStatus() {}
 
-    virtual void update(BlockSyncStatusInterface::ConstPtr _status);
+    virtual bool update(BlockSyncStatusInterface::ConstPtr _status);
 
     bcos::crypto::PublicPtr nodeId() { return m_nodeId; }
 
@@ -82,9 +82,15 @@ public:
     virtual ~SyncPeerStatus() {}
 
     virtual bool hashPeer(bcos::crypto::PublicPtr _peer);
+    virtual PeerStatus::Ptr peerStatus(bcos::crypto::PublicPtr _peer);
     virtual bool updatePeerStatus(
         bcos::crypto::PublicPtr _peer, BlockSyncStatusInterface::ConstPtr _peerStatus);
     virtual void deletePeer(bcos::crypto::PublicPtr _peer);
+
+    void foreachPeerRandom(std::function<bool(PeerStatus::Ptr)> const& _f) const;
+
+protected:
+    virtual void updateKnownMaxBlockInfo(BlockSyncStatusInterface::ConstPtr _peerStatus);
 
 private:
     std::map<bcos::crypto::PublicPtr, PeerStatus::Ptr> m_peersStatus;

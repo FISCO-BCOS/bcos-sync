@@ -37,7 +37,9 @@ struct BlockCmp
         return _first->blockHeader()->number() > _second->blockHeader()->number();
     }
 };
-class DownloadingQueue
+using BlockQueue =
+    std::priority_queue<bcos::protocol::Block::Ptr, bcos::protocol::Blocks, BlockCmp>;
+class DownloadingQueue : public std::enable_shared_from_this<DownloadingQueue>
 {
 public:
     using BlocksMessageQueue = std::list<BlocksMsgInterface::Ptr>;
@@ -64,10 +66,11 @@ public:
 
     virtual void clearFullQueueIfNotHas(bcos::protocol::BlockNumber _blockNumber);
 
-protected:
+    virtual void applyBlock(bcos::protocol::Block::Ptr _block);
     // clear queue and buffer
     virtual void clear();
 
+protected:
     // clear queue
     virtual void clearQueue();
 
@@ -76,17 +79,22 @@ protected:
     virtual bool flushOneShard(BlocksMsgInterface::Ptr _blocksData);
     virtual bool isNewerBlock(bcos::protocol::Block::Ptr _block);
 
+    virtual void commitBlock(bcos::protocol::Block::Ptr _block);
+    virtual bool checkBlock(bcos::protocol::Block::Ptr _block);
+    virtual void updateCommitQueue(bcos::protocol::Block::Ptr _block);
+    virtual void tryToCommitBlockToLedger();
+
 private:
     BlockSyncConfig::Ptr m_config;
-
-
-    using BlockQueue =
-        std::priority_queue<bcos::protocol::Block::Ptr, bcos::protocol::Blocks, BlockCmp>;
     BlockQueue m_blocks;
     mutable SharedMutex x_blocks;
 
     BlocksMessageQueuePtr m_blockBuffer;
     mutable SharedMutex x_blockBuffer;
+
+    // TODO: clear expired elment of this queue
+    BlockQueue m_commitQueue;
+    mutable SharedMutex x_commitQueue;
 };
 }  // namespace sync
 }  // namespace bcos

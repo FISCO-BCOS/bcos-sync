@@ -33,12 +33,19 @@ public:
     BlockSyncMsgFactory() = default;
     virtual ~BlockSyncMsgFactory() {}
 
+    virtual BlockSyncMsgInterface::Ptr createBlockSyncMsg(bytesConstRef _data) = 0;
     virtual BlockSyncStatusInterface::Ptr createBlockSyncStatusMsg() = 0;
     virtual BlockSyncStatusInterface::Ptr createBlockSyncStatusMsg(bytesConstRef _data) = 0;
+    virtual BlockSyncStatusInterface::Ptr createBlockSyncStatusMsg(
+        BlockSyncMsgInterface::Ptr _msg) = 0;
+
     virtual BlocksMsgInterface::Ptr createBlocksMsg() = 0;
     virtual BlocksMsgInterface::Ptr createBlocksMsg(bytesConstRef _data) = 0;
+    virtual BlocksMsgInterface::Ptr createBlocksMsg(BlockSyncMsgInterface::Ptr _msg) = 0;
+
     virtual BlockRequestInterface::Ptr createBlockRequest() = 0;
     virtual BlockRequestInterface::Ptr createBlockRequest(bytesConstRef _data) = 0;
+    virtual BlockRequestInterface::Ptr createBlockRequest(BlockSyncMsgInterface::Ptr _msg) = 0;
 };
 }  // namespace sync
 }  // namespace bcos

@@ -21,6 +21,8 @@
 #pragma once
 #include "interfaces/BlockSyncStatusInterface.h"
 #include "protocol/PB/BlockSyncMsgImpl.h"
+#include "utilities/Common.h"
+
 namespace bcos
 {
 namespace sync
@@ -29,8 +31,19 @@ class BlockSyncStatusImpl : public BlockSyncStatusInterface, public BlockSyncMsg
 {
 public:
     using Ptr = std::shared_ptr<BlockSyncStatusImpl>;
-    BlockSyncStatusImpl() : BlockSyncMsgImpl() {}
+    BlockSyncStatusImpl() : BlockSyncMsgImpl()
+    {
+        setPacketType(BlockSyncPacketType::BlockStatusPacket);
+    }
+    explicit BlockSyncStatusImpl(BlockSyncMsgImpl::Ptr _blockSyncMsg)
+    {
+        setPacketType(BlockSyncPacketType::BlockStatusPacket);
+        m_syncMessage = _blockSyncMsg->syncMessage();
+        deserializeObject();
+    }
+
     explicit BlockSyncStatusImpl(bytesConstRef _data) : BlockSyncStatusImpl() { decode(_data); }
+
     ~BlockSyncStatusImpl() override {}
 
     void decode(bytesConstRef _data) override;

@@ -39,37 +39,48 @@ PeerStatus::PeerStatus(
   : PeerStatus(_config, _nodeId, _status->number(), _status->hash(), _status->genesisHash())
 {}
 
-void PeerStatus::update(BlockSyncStatusInterface::ConstPtr _status)
+bool PeerStatus::update(BlockSyncStatusInterface::ConstPtr _status)
 {
     UpgradableGuard l(x_mutex);
     if (_status->number() <= m_number)
     {
-        return;
+        return false;
     }
     if (_status->genesisHash() != m_genesisHash)
     {
-        BLOCK_SYNC_LOG(WARNING) << LOG_BADGE("Status")
-                                << LOG_DESC(
-                                       "Receive invalid status packet with different genesis hash")
-                                << LOG_KV("peer", m_nodeId->shortHex())
-                                << LOG_KV("genesisHash", _status->genesisHash().abridged())
-                                << LOG_KV("storedGenesisHash", m_genesisHash.abridged());
-        return;
+        BLKSYNC_LOG(WARNING) << LOG_BADGE("Status")
+                             << LOG_DESC(
+                                    "Receive invalid status packet with different genesis hash")
+                             << LOG_KV("peer", m_nodeId->shortHex())
+                             << LOG_KV("genesisHash", _status->genesisHash().abridged())
+                             << LOG_KV("storedGenesisHash", m_genesisHash.abridged());
+        return false;
     }
     UpgradeGuard ul(l);
     m_number = _status->number();
     m_hash = _status->hash();
 
-    BLOCK_SYNC_LOG(DEBUG) << LOG_DESC("updatePeerStatus") << LOG_KV("peer", m_nodeId->shortHex())
-                          << LOG_KV("number", _status->number())
-                          << LOG_KV("hash", _status->hash().abridged())
-                          << LOG_KV("genesisHash", _status->genesisHash().abridged());
+    BLKSYNC_LOG(DEBUG) << LOG_DESC("updatePeerStatus") << LOG_KV("peer", m_nodeId->shortHex())
+                       << LOG_KV("number", _status->number())
+                       << LOG_KV("hash", _status->hash().abridged())
+                       << LOG_KV("genesisHash", _status->genesisHash().abridged());
+    return true;
 }
 
 bool SyncPeerStatus::hashPeer(PublicPtr _peer)
 {
     ReadGuard l(x_peersStatus);
     return m_peersStatus.count(_peer);
+}
+
+PeerStatus::Ptr SyncPeerStatus::peerStatus(bcos::crypto::PublicPtr _peer)
+{
+    ReadGuard l(x_peersStatus);
+    if (!m_peersStatus.count(_peer))
+    {
+        return nullptr;
+    }
+    return m_peersStatus[_peer];
 }
 
 bool SyncPeerStatus::updatePeerStatus(
@@ -80,18 +91,36 @@ bool SyncPeerStatus::updatePeerStatus(
     if (m_peersStatus.count(_peer))
     {
         auto status = m_peersStatus[_peer];
-        status->update(_peerStatus);
+        if (status->update(_peerStatus))
+        {
+            updateKnownMaxBlockInfo(_peerStatus);
+        }
         return true;
     }
     // create and insert the new peer status
     auto peerStatus = std::make_shared<PeerStatus>(m_config, _peer, _peerStatus);
     m_peersStatus.insert(std::make_pair(_peer, peerStatus));
-    BLOCK_SYNC_LOG(DEBUG) << LOG_DESC("updatePeerStatus: new peer")
-                          << LOG_KV("peer", _peer->shortHex())
-                          << LOG_KV("number", _peerStatus->number())
-                          << LOG_KV("hash", _peerStatus->hash().abridged())
-                          << LOG_KV("genesisHash", _peerStatus->genesisHash().abridged());
+    BLKSYNC_LOG(DEBUG) << LOG_DESC("updatePeerStatus: new peer")
+                       << LOG_KV("peer", _peer->shortHex())
+                       << LOG_KV("number", _peerStatus->number())
+                       << LOG_KV("hash", _peerStatus->hash().abridged())
+                       << LOG_KV("genesisHash", _peerStatus->genesisHash().abridged());
+    updateKnownMaxBlockInfo(_peerStatus);
     return true;
+}
+
+void SyncPeerStatus::updateKnownMaxBlockInfo(BlockSyncStatusInterface::ConstPtr _peerStatus)
+{
+    if (_peerStatus->genesisHash() != m_config->genesisHash())
+    {
+        return;
+    }
+    if (_peerStatus->number() <= m_config->knownHighestNumber())
+    {
+        return;
+    }
+    m_config->setKnownHighestNumber(_peerStatus->number());
+    m_config->setKnownLatestHash(_peerStatus->hash());
 }
 
 void SyncPeerStatus::deletePeer(PublicPtr _peer)
@@ -101,5 +130,42 @@ void SyncPeerStatus::deletePeer(PublicPtr _peer)
     if (peer != m_peersStatus.end())
     {
         m_peersStatus.erase(peer);
+    }
+}
+
+void SyncPeerStatus::foreachPeerRandom(std::function<bool(PeerStatus::Ptr)> const& _f) const
+{
+    ReadGuard l(x_peersStatus);
+    if (m_peersStatus.empty())
+    {
+        return;
+    }
+
+    // Get nodeid list
+    NodeIDs nodeIds;
+    for (auto& peer : m_peersStatus)
+    {
+        nodeIds.emplace_back(peer.first);
+    }
+
+    // Random nodeid list
+    for (size_t i = nodeIds.size() - 1; i > 0; --i)
+    {
+        size_t select = rand() % (i + 1);
+        swap(nodeIds[i], nodeIds[select]);
+    }
+
+    // access _f() according to the random list
+    for (auto nodeId : nodeIds)
+    {
+        auto const& peer = m_peersStatus.find(nodeId);
+        if (peer == m_peersStatus.end())
+        {
+            continue;
+        }
+        if (peer->second && !_f(peer->second))
+        {
+            break;
+        }
     }
 }

@@ -21,7 +21,7 @@
 #pragma once
 #include "interfaces/BlocksMsgInterface.h"
 #include "protocol/PB/BlockSyncMsgImpl.h"
-#include "protocol/proto/BlockSync.pb.h"
+#include "utilities/Common.h"
 namespace bcos
 {
 namespace sync
@@ -30,7 +30,14 @@ class BlocksMsgImpl : public BlocksMsgInterface, public BlockSyncMsgImpl
 {
 public:
     using Ptr = std::shared_ptr<BlocksMsgImpl>;
-    BlocksMsgImpl() : BlockSyncMsgImpl() {}
+    BlocksMsgImpl() : BlockSyncMsgImpl()
+    {
+        setPacketType(BlockSyncPacketType::BlockResponsePacket);
+    }
+    explicit BlocksMsgImpl(BlockSyncMsgImpl::Ptr _blockSyncMsg)
+      : BlocksMsgImpl(_blockSyncMsg->syncMessage())
+    {}
+
     explicit BlocksMsgImpl(bytesConstRef _data) : BlocksMsgImpl() { decode(_data); }
     ~BlocksMsgImpl() override {}
 
@@ -47,6 +54,13 @@ public:
         auto blockSize = _blockData.size();
         m_syncMessage->add_blocksdata();
         m_syncMessage->set_mutable_blocksdata(index, std::move(_blockData), blockSize);
+    }
+
+protected:
+    explicit BlocksMsgImpl(std::shared_ptr<BlockSyncMessage> _syncMessage)
+    {
+        setPacketType(BlockSyncPacketType::BlockResponsePacket);
+        m_syncMessage = _syncMessage;
     }
 };
 }  // namespace sync

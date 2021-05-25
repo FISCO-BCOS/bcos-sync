@@ -29,7 +29,7 @@ namespace sync
 class BlockSyncMsgImpl : public virtual BlockSyncMsgInterface
 {
 public:
-    using Ptr = std::shared_ptr<BlockSyncMsgImpl>();
+    using Ptr = std::shared_ptr<BlockSyncMsgImpl>;
     BlockSyncMsgImpl() : m_syncMessage(std::make_shared<BlockSyncMessage>()) {}
     ~BlockSyncMsgImpl() override {}
 
@@ -51,6 +51,8 @@ public:
     }
 
     void setPacketType(int32_t packetType) override { m_syncMessage->set_packettype(packetType); }
+
+    std::shared_ptr<BlockSyncMessage> syncMessage() { return m_syncMessage; }
 
 protected:
     std::shared_ptr<BlockSyncMessage> m_syncMessage;

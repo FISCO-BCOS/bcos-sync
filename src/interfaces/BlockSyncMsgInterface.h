@@ -20,6 +20,7 @@
  */
 #pragma once
 #include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
+#include <memory>
 namespace bcos
 {
 namespace sync

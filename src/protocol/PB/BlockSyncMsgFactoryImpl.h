@@ -33,6 +33,11 @@ public:
     BlockSyncMsgFactoryImpl() = default;
     ~BlockSyncMsgFactoryImpl() override {}
 
+    BlockSyncMsgInterface::Ptr createBlockSyncMsg(bytesConstRef _data) override
+    {
+        return std::make_shared<BlockSyncMsgImpl>(_data);
+    }
+
     BlockSyncStatusInterface::Ptr createBlockSyncStatusMsg() override
     {
         return std::make_shared<BlockSyncStatusImpl>();
@@ -42,11 +47,19 @@ public:
     {
         return std::make_shared<BlockSyncStatusImpl>(_data);
     }
+    BlockSyncStatusInterface::Ptr createBlockSyncStatusMsg(BlockSyncMsgInterface::Ptr _msg) override
+    {
+        return std::make_shared<BlockSyncStatusImpl>(_msg);
+    }
 
     BlocksMsgInterface::Ptr createBlocksMsg() override { return std::make_shared<BlocksMsgImpl>(); }
     BlocksMsgInterface::Ptr createBlocksMsg(bytesConstRef _data) override
     {
         return std::make_shared<BlocksMsgImpl>(_data);
+    }
+    BlocksMsgInterface::Ptr createBlocksMsg(BlockSyncMsgInterface::Ptr _msg) override
+    {
+        return std::make_shared<BlocksMsgImpl>(_msg);
     }
 
     BlockRequestInterface::Ptr createBlockRequest() override
@@ -56,6 +69,10 @@ public:
     BlockRequestInterface::Ptr createBlockRequest(bytesConstRef _data) override
     {
         return std::make_shared<BlockRequestImpl>(_data);
+    }
+    BlockRequestInterface::Ptr createBlockRequest(BlockSyncMsgInterface::Ptr _msg) override
+    {
+        return std::make_shared<BlockRequestImpl>(_msg);
     }
 };
 }  // namespace sync

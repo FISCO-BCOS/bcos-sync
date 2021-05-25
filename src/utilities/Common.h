@@ -21,7 +21,7 @@
 #pragma once
 #include <bcos-framework/libutilities/Log.h>
 
-#define BLOCK_SYNC_LOG(LEVEL) LOG(LEVEL) << LOG_BADGE("BLOCK SYNC")
+#define BLKSYNC_LOG(LEVEL) LOG(LEVEL) << LOG_BADGE("BLOCK SYNC")
 namespace bcos
 {
 namespace sync
