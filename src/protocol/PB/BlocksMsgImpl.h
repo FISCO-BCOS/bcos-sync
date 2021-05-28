@@ -44,7 +44,7 @@ public:
     size_t blocksSize() const override { return m_syncMessage->blocksdata_size(); }
     bytesConstRef blockData(size_t _index) const override
     {
-        auto const& blockData = m_syncMessage->blocks_data(_index);
+        auto const& blockData = m_syncMessage->blocksdata(_index);
         return bytesConstRef((byte const*)blockData.data(), blockData.size());
     }
 
@@ -53,7 +53,7 @@ public:
         auto index = blocksSize();
         auto blockSize = _blockData.size();
         m_syncMessage->add_blocksdata();
-        m_syncMessage->set_mutable_blocksdata(index, std::move(_blockData), blockSize);
+        m_syncMessage->set_blocksdata(index, (std::move(_blockData)).data(), blockSize);
     }
 
 protected:

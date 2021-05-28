@@ -95,7 +95,7 @@ protected:
     virtual void updateKnownMaxBlockInfo(BlockSyncStatusInterface::ConstPtr _peerStatus);
 
 private:
-    std::map<bcos::crypto::PublicPtr, PeerStatus::Ptr> m_peersStatus;
+    std::map<bcos::crypto::PublicPtr, PeerStatus::Ptr, bcos::crypto::KeyCompare> m_peersStatus;
     mutable SharedMutex x_peersStatus;
 
     BlockSyncConfig::Ptr m_config;

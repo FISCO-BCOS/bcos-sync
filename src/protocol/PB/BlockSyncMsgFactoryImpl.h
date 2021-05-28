@@ -20,9 +20,9 @@
  */
 #pragma once
 #include "interfaces/BlockSyncMsgFactory.h"
-#include "interfaces/protocol/PB/BlockRequestImpl.h"
-#include "interfaces/protocol/PB/BlockSyncStatusImpl.h"
-#include "interfaces/protocol/PB/BlocksMsgImpl.h"
+#include "protocol/PB/BlockRequestImpl.h"
+#include "protocol/PB/BlockSyncStatusImpl.h"
+#include "protocol/PB/BlocksMsgImpl.h"
 namespace bcos
 {
 namespace sync
@@ -49,7 +49,8 @@ public:
     }
     BlockSyncStatusInterface::Ptr createBlockSyncStatusMsg(BlockSyncMsgInterface::Ptr _msg) override
     {
-        return std::make_shared<BlockSyncStatusImpl>(_msg);
+        auto syncMsg = std::dynamic_pointer_cast<BlockSyncMsgImpl>(_msg);
+        return std::make_shared<BlockSyncStatusImpl>(syncMsg);
     }
 
     BlocksMsgInterface::Ptr createBlocksMsg() override { return std::make_shared<BlocksMsgImpl>(); }
@@ -59,7 +60,8 @@ public:
     }
     BlocksMsgInterface::Ptr createBlocksMsg(BlockSyncMsgInterface::Ptr _msg) override
     {
-        return std::make_shared<BlocksMsgImpl>(_msg);
+        auto syncMsg = std::dynamic_pointer_cast<BlockSyncMsgImpl>(_msg);
+        return std::make_shared<BlocksMsgImpl>(syncMsg);
     }
 
     BlockRequestInterface::Ptr createBlockRequest() override
@@ -72,7 +74,8 @@ public:
     }
     BlockRequestInterface::Ptr createBlockRequest(BlockSyncMsgInterface::Ptr _msg) override
     {
-        return std::make_shared<BlockRequestImpl>(_msg);
+        auto syncMsg = std::dynamic_pointer_cast<BlockSyncMsgImpl>(_msg);
+        return std::make_shared<BlockRequestImpl>(syncMsg);
     }
 };
 }  // namespace sync
