@@ -55,8 +55,6 @@ include(CompilerSettings)
 include(CopyClangFormat)
 
 include_directories(${CMAKE_INSTALL_INCLUDEDIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src)
 
@@ -71,6 +69,17 @@ set(PROTO_SUB_DIR "src/protocol/proto")
 set(BLOCK_SYNC_TARGET "block-sync")
 add_subdirectory(src)
 
+# install the target
+include(InstallConfig)
+install(
+    TARGETS ${BLOCK_SYNC_TARGET}
+    EXPORT "${TARGETS_EXPORT_NAME}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
+include(InstallInclude)
 if (TESTS)
     # fetch bcos-test    
     enable_testing()
