@@ -45,12 +45,15 @@ void BlockSyncFactory::init()
     fetcher->fetchBlockNumberAndHash();
     fetcher->fetchConsensusNodeList();
     fetcher->fetchObserverNodeList();
+    fetcher->fetchGenesisHash();
     fetcher->waitFetchFinished();
+    // set the syncConfig
+    auto genesisHash = fetcher->genesisHash();
     BLKSYNC_LOG(INFO) << LOG_DESC("fetch the ledger config for block sync module success")
                       << LOG_KV("number", fetcher->ledgerConfig()->blockNumber())
-                      << LOG_KV("latestHash", fetcher->ledgerConfig()->hash().abridged());
-
-    // set the syncConfig
+                      << LOG_KV("latestHash", fetcher->ledgerConfig()->hash().abridged())
+                      << LOG_KV("genesisHash", genesisHash);
+    m_syncConfig->setGenesisHash(genesisHash);
     m_syncConfig->resetConfig(fetcher->ledgerConfig());
     BLKSYNC_LOG(INFO) << LOG_DESC("init block sync success");
 }
