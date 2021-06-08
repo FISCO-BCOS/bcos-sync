@@ -80,10 +80,10 @@ install(
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
 include(InstallInclude)
-if (TESTS)
-    # fetch bcos-test    
+if (TESTS) 
     enable_testing()
     set(CTEST_OUTPUT_ON_FAILURE TRUE)
+    add_subdirectory(test) 
 endif()
 
 # for doxygen

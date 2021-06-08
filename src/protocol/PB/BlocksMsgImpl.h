@@ -56,6 +56,14 @@ public:
         m_syncMessage->set_blocksdata(index, (std::move(_blockData)).data(), blockSize);
     }
 
+    void appendBlockData(bytes const& _blockData) override
+    {
+        auto index = blocksSize();
+        auto blockSize = _blockData.size();
+        m_syncMessage->add_blocksdata();
+        m_syncMessage->set_blocksdata(index, _blockData.data(), blockSize);
+    }
+
 protected:
     explicit BlocksMsgImpl(std::shared_ptr<BlockSyncMessage> _syncMessage)
     {
