@@ -232,7 +232,10 @@ void BlockSync::asyncNotifyNewBlock(
     BLKSYNC_LOG(DEBUG) << LOG_DESC("asyncNotifyNewBlock: receive new block info")
                        << LOG_KV("number", _ledgerConfig->blockNumber())
                        << LOG_KV("hash", _ledgerConfig->hash().abridged());
-    onNewBlock(_ledgerConfig);
+    if (_ledgerConfig->blockNumber() > m_config->blockNumber())
+    {
+        onNewBlock(_ledgerConfig);
+    }
     _onRecv(nullptr);
 }
 
@@ -247,7 +250,6 @@ void BlockSync::onPeerStatus(NodeIDPtr _nodeID, BlockSyncMsgInterface::Ptr _sync
 {
     auto statusMsg = m_config->msgFactory()->createBlockSyncStatusMsg(_syncMsg);
     m_syncStatus->updatePeerStatus(_nodeID, statusMsg);
-    m_signalled.notify_all();
 }
 
 void BlockSync::onPeerBlocks(NodeIDPtr _nodeID, BlockSyncMsgInterface::Ptr _syncMsg)
@@ -520,7 +522,8 @@ void BlockSync::maintainPeersConnection()
                            << LOG_KV("number", newPeerStatus->number())
                            << LOG_KV("genesisHash", newPeerStatus->genesisHash().abridged())
                            << LOG_KV("currentHash", newPeerStatus->hash().abridged())
-                           << LOG_KV("peer", node->shortHex());
+                           << LOG_KV("peer", node->shortHex())
+                           << LOG_KV("node", m_config->nodeID()->shortHex());
     }
 }
 

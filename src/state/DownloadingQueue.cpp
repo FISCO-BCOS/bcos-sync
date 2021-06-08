@@ -360,7 +360,7 @@ void DownloadingQueue::clearExpiredQueueCache()
 void DownloadingQueue::clearExpiredCache(BlockQueue& _queue, SharedMutex& _lock)
 {
     WriteGuard l(_lock);
-    while (_queue.top()->blockHeader()->number() <= m_config->blockNumber())
+    while (!_queue.empty() && _queue.top()->blockHeader()->number() <= m_config->blockNumber())
     {
         _queue.pop();
     }
