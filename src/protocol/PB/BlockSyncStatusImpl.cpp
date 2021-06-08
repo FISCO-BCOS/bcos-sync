@@ -36,12 +36,12 @@ void BlockSyncStatusImpl::deserializeObject()
     auto const& hashData = m_syncMessage->hash();
     if (hashData.size() >= HashType::size)
     {
-        m_hash = HashType((byte const*)hashData.size(), HashType::size);
+        m_hash = HashType((byte const*)hashData.data(), HashType::size);
     }
     auto const& genesisHashData = m_syncMessage->genesishash();
     if (genesisHashData.size() >= HashType::size)
     {
-        m_genesisHash = HashType((byte const*)genesisHashData.size(), HashType::size);
+        m_genesisHash = HashType((byte const*)genesisHashData.data(), HashType::size);
     }
 }
 void BlockSyncStatusImpl::setHash(HashType const& _hash)

@@ -35,6 +35,7 @@ public:
     virtual bytesConstRef blockData(size_t _index) const = 0;
 
     virtual void appendBlockData(bytes&& _blockData) = 0;
+    virtual void appendBlockData(bytes const& _blockData) = 0;
 };
 using BlocksMsgList = std::vector<BlocksMsgInterface::Ptr>;
 using BlocksMsgListPtr = std::shared_ptr<BlocksMsgList>;
