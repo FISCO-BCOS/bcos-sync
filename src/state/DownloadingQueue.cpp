@@ -124,7 +124,6 @@ bool DownloadingQueue::flushOneShard(BlocksMsgInterface::Ptr _blocksData)
                        << LOG_DESC("Decoding block buffer")
                        << LOG_KV("blocksShardSize", _blocksData->blocksSize());
     size_t blocksSize = _blocksData->blocksSize();
-    size_t successCnt = 0;
     for (size_t i = 0; i < blocksSize; i++)
     {
         try
@@ -134,7 +133,10 @@ bool DownloadingQueue::flushOneShard(BlocksMsgInterface::Ptr _blocksData)
             if (isNewerBlock(block))
             {
                 m_blocks.push(block);
-                successCnt++;
+                BLKSYNC_LOG(DEBUG) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
+                                   << LOG_DESC("Flush block to the queue")
+                                   << LOG_KV("number", block->blockHeader()->number())
+                                   << LOG_KV("nodeId", m_config->nodeID()->shortHex());
             }
         }
         catch (std::exception const& e)
@@ -146,10 +148,15 @@ bool DownloadingQueue::flushOneShard(BlocksMsgInterface::Ptr _blocksData)
             continue;
         }
     }
+    if (m_blocks.size() == 0)
+    {
+        return true;
+    }
     BLKSYNC_LOG(DEBUG) << LOG_BADGE("Download") << LOG_BADGE("BlockSync")
-                       << LOG_DESC("Flush buffer to block queue") << LOG_KV("import", successCnt)
-                       << LOG_KV("rcv", blocksSize)
-                       << LOG_KV("downloadBlockQueue", m_blocks.size());
+                       << LOG_DESC("Flush buffer to block queue") << LOG_KV("rcv", blocksSize)
+                       << LOG_KV("top", m_blocks.top()->blockHeader()->number())
+                       << LOG_KV("downloadBlockQueue", m_blocks.size())
+                       << LOG_KV("nodeId", m_config->nodeID()->shortHex());
     return true;
 }
 
@@ -184,7 +191,8 @@ void DownloadingQueue::applyBlock(Block::Ptr _block)
 {
     BLKSYNC_LOG(INFO) << LOG_BADGE("Download") << LOG_DESC("BlockSync: applyBlock")
                       << LOG_KV("number", _block->blockHeader()->number())
-                      << LOG_KV("hash", _block->blockHeader()->hash().abridged());
+                      << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                      << LOG_KV("node", m_config->nodeID()->shortHex());
     auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
     m_config->dispatcher()->asyncExecuteBlock(
         _block, true, [self, _block](Error::Ptr _error, protocol::BlockHeader::Ptr) {
@@ -199,7 +207,7 @@ void DownloadingQueue::applyBlock(Block::Ptr _block)
                 if (_error != nullptr)
                 {
                     BLKSYNC_LOG(WARNING)
-                        << LOG_DESC("applyBlock: executing the synced block failed")
+                        << LOG_DESC("applyBlock: executing the downloaded block failed")
                         << LOG_KV("number", _block->blockHeader()->number())
                         << LOG_KV("hash", _block->blockHeader()->hash().abridged())
                         << LOG_KV("errorCode", _error->errorCode())
@@ -290,14 +298,16 @@ void DownloadingQueue::tryToCommitBlockToLedger()
 {
     WriteGuard l(x_commitQueue);
     // remove expired block
-    while (m_commitQueue.top()->blockHeader()->number() <= m_config->blockNumber())
+    while (!m_commitQueue.empty() &&
+           m_commitQueue.top()->blockHeader()->number() <= m_config->blockNumber())
     {
         m_commitQueue.pop();
     }
     // try to commit the block
-    auto block = m_commitQueue.top();
-    if (block->blockHeader()->number() == m_config->nextBlock())
+    if (!m_commitQueue.empty() &&
+        m_commitQueue.top()->blockHeader()->number() == m_config->nextBlock())
     {
+        auto block = m_commitQueue.top();
         checkAndCommitBlock(block);
         m_commitQueue.pop();
     }
@@ -305,7 +315,7 @@ void DownloadingQueue::tryToCommitBlockToLedger()
 
 void DownloadingQueue::commitBlock(Block::Ptr _block)
 {
-    BLKSYNC_LOG(INFO) << LOG_DESC("commitBlock: executing the synced block failed")
+    BLKSYNC_LOG(INFO) << LOG_DESC("commitBlock")
                       << LOG_KV("number", _block->blockHeader()->number())
                       << LOG_KV("hash", _block->blockHeader()->hash().abridged());
     auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
@@ -337,9 +347,11 @@ void DownloadingQueue::commitBlock(Block::Ptr _block)
                 downloadingQueue->m_newBlockHandler(_ledgerConfig);
                 // try to commit the next block
                 downloadingQueue->tryToCommitBlockToLedger();
-                BLKSYNC_LOG(WARNING) << LOG_DESC("commitBlock success")
-                                     << LOG_KV("number", _block->blockHeader()->number())
-                                     << LOG_KV("hash", _block->blockHeader()->hash().abridged());
+                BLKSYNC_LOG(INFO) << LOG_DESC("commitBlock success")
+                                  << LOG_KV("number", _block->blockHeader()->number())
+                                  << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                                  << LOG_KV(
+                                         "node", downloadingQueue->m_config->nodeID()->shortHex());
             }
             catch (std::exception const& e)
             {
