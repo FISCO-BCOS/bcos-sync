@@ -19,7 +19,7 @@
  * @date 2021-05-24
  */
 #pragma once
-#include "interfaces/BlockSyncMsgFactory.h"
+#include "bcos-sync/interfaces/BlockSyncMsgFactory.h"
 #include <bcos-framework/interfaces/consensus/ConsensusInterface.h>
 #include <bcos-framework/interfaces/crypto/KeyInterface.h>
 #include <bcos-framework/interfaces/dispatcher/DispatcherInterface.h>

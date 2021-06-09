@@ -19,10 +19,10 @@
  * @date 2021-05-24
  */
 #pragma once
-#include "BlockSyncConfig.h"
-#include "interfaces/BlockSyncStatusInterface.h"
-#include "state/DownloadRequestQueue.h"
-#include "utilities/Common.h"
+#include "bcos-sync/BlockSyncConfig.h"
+#include "bcos-sync/interfaces/BlockSyncStatusInterface.h"
+#include "bcos-sync/state/DownloadRequestQueue.h"
+#include "bcos-sync/utilities/Common.h"
 namespace bcos
 {
 namespace sync

@@ -19,7 +19,7 @@
  * @date 2021-05-25
  */
 #include "BlockSyncConfig.h"
-#include "utilities/Common.h"
+#include "bcos-sync/utilities/Common.h"
 using namespace bcos;
 using namespace bcos::sync;
 using namespace bcos::crypto;

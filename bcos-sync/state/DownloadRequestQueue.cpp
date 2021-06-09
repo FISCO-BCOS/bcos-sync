@@ -19,7 +19,7 @@
  * @date 2021-05-24
  */
 #include "DownloadRequestQueue.h"
-#include "utilities/Common.h"
+#include "bcos-sync/utilities/Common.h"
 
 using namespace bcos;
 using namespace bcos::sync;

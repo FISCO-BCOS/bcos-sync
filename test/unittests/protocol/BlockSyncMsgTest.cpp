@@ -18,7 +18,7 @@
  * @author: yujiechen
  * @date 2021-06-08
  */
-#include "protocol/PB/BlockSyncMsgFactoryImpl.h"
+#include "bcos-sync/protocol/PB/BlockSyncMsgFactoryImpl.h"
 #include <bcos-framework/testutils/TestPromptFixture.h>
 #include <bcos-framework/testutils/crypto/HashImpl.h>
 #include <boost/test/unit_test.hpp>

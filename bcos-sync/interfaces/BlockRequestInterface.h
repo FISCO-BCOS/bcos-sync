@@ -13,32 +13,27 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *
- * @brief status for the block sync
- * @file BlockSyncStatueInterface.h
+ * @brief interfaces for block request packet
+ * @file BlockRequestInterface.h
  * @author: yujiechen
- * @date 2021-05-23
+ * @date 2021-05-24
  */
 
 #pragma once
-#include "interfaces/BlockSyncMsgInterface.h"
-#include <bcos-framework/interfaces/protocol/ProtocolTypeDef.h>
+#include "bcos-sync/interfaces/BlockSyncMsgInterface.h"
 namespace bcos
 {
 namespace sync
 {
-class BlockSyncStatusInterface : virtual public BlockSyncMsgInterface
+class BlockRequestInterface : virtual public BlockSyncMsgInterface
 {
 public:
-    using Ptr = std::shared_ptr<BlockSyncStatusInterface>;
-    using ConstPtr = std::shared_ptr<BlockSyncStatusInterface const>;
-    BlockSyncStatusInterface() = default;
-    virtual ~BlockSyncStatusInterface() {}
+    using Ptr = std::shared_ptr<BlockRequestInterface>;
+    BlockRequestInterface() = default;
+    virtual ~BlockRequestInterface() {}
 
-    virtual bcos::crypto::HashType const& hash() const = 0;
-    virtual bcos::crypto::HashType const& genesisHash() const = 0;
-
-    virtual void setHash(bcos::crypto::HashType const& _hash) = 0;
-    virtual void setGenesisHash(bcos::crypto::HashType const& _gensisHash) = 0;
+    virtual size_t size() const = 0;
+    virtual void setSize(size_t _size) = 0;
 };
 }  // namespace sync
 }  // namespace bcos
