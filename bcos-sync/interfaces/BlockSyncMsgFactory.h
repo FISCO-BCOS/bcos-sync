@@ -19,9 +19,9 @@
  * @date 2021-05-23
  */
 #pragma once
-#include "interfaces/BlockRequestInterface.h"
-#include "interfaces/BlockSyncStatusInterface.h"
-#include "interfaces/BlocksMsgInterface.h"
+#include "bcos-sync/interfaces/BlockRequestInterface.h"
+#include "bcos-sync/interfaces/BlockSyncStatusInterface.h"
+#include "bcos-sync/interfaces/BlocksMsgInterface.h"
 namespace bcos
 {
 namespace sync

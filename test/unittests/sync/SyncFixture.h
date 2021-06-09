@@ -20,8 +20,8 @@
  */
 #pragma once
 #include "../faker/FakeConsensus.h"
-#include "BlockSync.h"
-#include "BlockSyncFactory.h"
+#include "bcos-sync/BlockSync.h"
+#include "bcos-sync/BlockSyncFactory.h"
 #include <bcos-framework/interfaces/consensus/ConsensusNode.h>
 #include <bcos-framework/testutils/faker/FakeDispatcher.h>
 #include <bcos-framework/testutils/faker/FakeFrontService.h>

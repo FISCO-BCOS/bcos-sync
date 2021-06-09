@@ -19,8 +19,8 @@
  * @date 2021-05-28
  */
 #pragma once
-#include "BlockSync.h"
-#include "BlockSyncConfig.h"
+#include "bcos-sync/BlockSync.h"
+#include "bcos-sync/BlockSyncConfig.h"
 
 namespace bcos
 {
