@@ -31,7 +31,7 @@ PeerStatus::PeerStatus(BlockSyncConfig::Ptr _config, PublicPtr _nodeId, BlockNum
     m_number(_number),
     m_hash(_hash),
     m_genesisHash(_gensisHash),
-    m_downloadRequests(std::make_shared<DownloadRequestQueue>(_config))
+    m_downloadRequests(std::make_shared<DownloadRequestQueue>(_config, m_nodeId))
 {}
 
 PeerStatus::PeerStatus(
@@ -67,7 +67,7 @@ bool PeerStatus::update(BlockSyncStatusInterface::ConstPtr _status)
     return true;
 }
 
-bool SyncPeerStatus::hashPeer(PublicPtr _peer)
+bool SyncPeerStatus::hasPeer(PublicPtr _peer)
 {
     ReadGuard l(x_peersStatus);
     return m_peersStatus.count(_peer);
@@ -87,6 +87,17 @@ bool SyncPeerStatus::updatePeerStatus(
     PublicPtr _peer, BlockSyncStatusInterface::ConstPtr _peerStatus)
 {
     WriteGuard l(x_peersStatus);
+    // check the status
+    if (_peerStatus->genesisHash() != m_config->genesisHash())
+    {
+        BLKSYNC_LOG(WARNING) << LOG_BADGE("updatePeerStatus")
+                             << LOG_DESC(
+                                    "Receive invalid status packet with different genesis hash")
+                             << LOG_KV("peer", _peer->shortHex())
+                             << LOG_KV("genesisHash", _peerStatus->genesisHash().abridged())
+                             << LOG_KV("expectedGenesisHash", m_config->genesisHash().abridged());
+        return false;
+    }
     // update the existed peer status
     if (m_peersStatus.count(_peer))
     {
@@ -104,7 +115,8 @@ bool SyncPeerStatus::updatePeerStatus(
                        << LOG_KV("peer", _peer->shortHex())
                        << LOG_KV("number", _peerStatus->number())
                        << LOG_KV("hash", _peerStatus->hash().abridged())
-                       << LOG_KV("genesisHash", _peerStatus->genesisHash().abridged());
+                       << LOG_KV("genesisHash", _peerStatus->genesisHash().abridged())
+                       << LOG_KV("node", m_config->nodeID()->shortHex());
     updateKnownMaxBlockInfo(_peerStatus);
     return true;
 }

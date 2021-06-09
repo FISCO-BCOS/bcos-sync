@@ -76,12 +76,12 @@ protected:
 
     virtual void downloadFinish();
 
-private:
+protected:
     void requestBlocks(bcos::protocol::BlockNumber _from, bcos::protocol::BlockNumber _to);
     void fetchAndSendBlock(bcos::crypto::PublicPtr _peer, bcos::protocol::BlockNumber _number);
     void printSyncInfo();
 
-private:
+protected:
     BlockSyncConfig::Ptr m_config;
     SyncPeerStatus::Ptr m_syncStatus;
     DownloadingQueue::Ptr m_downloadingQueue;

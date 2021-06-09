@@ -35,7 +35,7 @@ void DownloadRequestQueue::push(BlockNumber _fromNumber, size_t _size)
                            << LOG_DESC("Drop request for reqQueue full")
                            << LOG_KV("reqQueueSize", m_reqQueue.size())
                            << LOG_KV("fromNumber", _fromNumber) << LOG_KV("size", _size)
-                           << LOG_KV("nodeId", m_config->nodeId()->shortHex());
+                           << LOG_KV("nodeId", m_config->nodeID()->shortHex());
         return;
     }
     UpgradeGuard ul(l);
@@ -43,7 +43,10 @@ void DownloadRequestQueue::push(BlockNumber _fromNumber, size_t _size)
     BLKSYNC_LOG(DEBUG) << LOG_BADGE("Download") << LOG_BADGE("Request")
                        << LOG_DESC("Push request in reqQueue req") << LOG_KV("from", _fromNumber)
                        << LOG_KV("to", _fromNumber + _size - 1)
-                       << LOG_KV("peer", m_config->nodeId()->shortHex());
+                       << LOG_KV("currentNumber", m_config->blockNumber())
+                       << LOG_KV("queueSize", m_reqQueue.size())
+                       << LOG_KV("peer", m_nodeId->shortHex())
+                       << LOG_KV("nodeId", m_config->nodeID()->shortHex());
 }
 
 DownloadRequest::Ptr DownloadRequestQueue::topAndPop()

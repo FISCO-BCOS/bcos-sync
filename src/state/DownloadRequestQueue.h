@@ -44,6 +44,10 @@ struct DownloadRequestCmp
 {
     bool operator()(DownloadRequest::Ptr const& _first, DownloadRequest::Ptr const& _second)
     {
+        if (_first->fromNumber() == _second->fromNumber())
+        {
+            return _first->size() < _second->size();
+        }
         return _first->fromNumber() > _second->fromNumber();
     }
 };
@@ -52,7 +56,9 @@ class DownloadRequestQueue
 {
 public:
     using Ptr = std::shared_ptr<DownloadRequestQueue>;
-    explicit DownloadRequestQueue(BlockSyncConfig::Ptr _config) : m_config(_config) {}
+    explicit DownloadRequestQueue(BlockSyncConfig::Ptr _config, bcos::crypto::NodeIDPtr _nodeId)
+      : m_config(_config), m_nodeId(_nodeId)
+    {}
     virtual ~DownloadRequestQueue() {}
 
     virtual void push(bcos::protocol::BlockNumber _fromNumber, size_t _size);
@@ -61,7 +67,7 @@ public:
 
 private:
     BlockSyncConfig::Ptr m_config;
-
+    bcos::crypto::NodeIDPtr m_nodeId;
     using RequestQueue = std::priority_queue<DownloadRequest::Ptr,
         std::vector<DownloadRequest::Ptr>, DownloadRequestCmp>;
     RequestQueue m_reqQueue;

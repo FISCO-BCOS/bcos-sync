@@ -40,6 +40,8 @@ public:
     virtual void init();
     BlockSyncInterface::Ptr sync() { return m_sync; }
 
+    BlockSyncConfig::Ptr syncConfig() { return m_syncConfig; }
+
 protected:
     bcos::ledger::LedgerInterface::Ptr m_ledger;
     BlockSync::Ptr m_sync;

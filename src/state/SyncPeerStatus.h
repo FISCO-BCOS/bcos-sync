@@ -81,7 +81,7 @@ public:
     explicit SyncPeerStatus(BlockSyncConfig::Ptr _config) : m_config(_config) {}
     virtual ~SyncPeerStatus() {}
 
-    virtual bool hashPeer(bcos::crypto::PublicPtr _peer);
+    virtual bool hasPeer(bcos::crypto::PublicPtr _peer);
     virtual PeerStatus::Ptr peerStatus(bcos::crypto::PublicPtr _peer);
     virtual bool updatePeerStatus(
         bcos::crypto::PublicPtr _peer, BlockSyncStatusInterface::ConstPtr _peerStatus);

@@ -42,7 +42,6 @@ public:
         bcos::consensus::ConsensusInterface::Ptr _consensus, BlockSyncMsgFactory::Ptr _msgFactory)
       : SyncConfig(_nodeId),
         m_ledger(_ledger),
-        m_nodeId(_nodeId),
         m_blockFactory(_blockFactory),
         m_frontService(_frontService),
         m_dispatcher(_dispatcher),
@@ -52,7 +51,6 @@ public:
     ~BlockSyncConfig() override {}
 
     bcos::ledger::LedgerInterface::Ptr ledger() { return m_ledger; }
-    bcos::crypto::PublicPtr nodeId() { return m_nodeId; }
     bcos::protocol::BlockFactory::Ptr blockFactory() { return m_blockFactory; }
     bcos::front::FrontServiceInterface::Ptr frontService() { return m_frontService; }
     bcos::dispatcher::DispatcherInterface::Ptr dispatcher() { return m_dispatcher; }
@@ -98,7 +96,6 @@ protected:
 
 private:
     bcos::ledger::LedgerInterface::Ptr m_ledger;
-    bcos::crypto::PublicPtr m_nodeId;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
     bcos::front::FrontServiceInterface::Ptr m_frontService;
     bcos::dispatcher::DispatcherInterface::Ptr m_dispatcher;
