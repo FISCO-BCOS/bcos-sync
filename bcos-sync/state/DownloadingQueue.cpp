@@ -219,6 +219,12 @@ void DownloadingQueue::applyBlock(Block::Ptr _block)
                     downloadQueue->m_config->setExecutedBlock(executedBlock);
                     return;
                 }
+                BLKSYNC_LOG(INFO) << LOG_BADGE("Download")
+                                  << LOG_DESC("BlockSync: applyBlock success")
+                                  << LOG_KV("number", _block->blockHeader()->number())
+                                  << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                                  << LOG_KV("nextBlock", downloadQueue->m_config->nextBlock())
+                                  << LOG_KV("node", downloadQueue->m_config->nodeID()->shortHex());
                 // verify and comit the block
                 downloadQueue->updateCommitQueue(_block);
             }
