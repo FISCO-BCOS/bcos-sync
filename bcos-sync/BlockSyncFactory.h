@@ -31,7 +31,9 @@ class BlockSyncFactory
 public:
     using Ptr = std::shared_ptr<BlockSyncFactory>;
     BlockSyncFactory(bcos::crypto::PublicPtr _nodeId,
-        bcos::protocol::BlockFactory::Ptr _blockFactory, bcos::ledger::LedgerInterface::Ptr _ledger,
+        bcos::protocol::BlockFactory::Ptr _blockFactory,
+        bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory,
+        bcos::ledger::LedgerInterface::Ptr _ledger, bcos::txpool::TxPoolInterface::Ptr _txpool,
         bcos::front::FrontServiceInterface::Ptr _frontService,
         bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
         bcos::consensus::ConsensusInterface::Ptr _consensus);

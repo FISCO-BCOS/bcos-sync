@@ -316,6 +316,7 @@ void BlockSync::tryToRequestBlocks()
         return;
     }
     auto requestToNumber = m_config->knownHighestNumber();
+    m_config->consensus()->notifyHighestSyncingNumber(requestToNumber);
     auto topBlock = m_downloadingQueue->top();
     // The block in BlockQueue is not nextBlock(the BlockQueue missing some block)
     if (topBlock && topBlock->blockHeader()->number() > m_config->nextBlock())

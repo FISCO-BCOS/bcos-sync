@@ -26,6 +26,8 @@
 #include <bcos-framework/interfaces/front/FrontServiceInterface.h>
 #include <bcos-framework/interfaces/ledger/LedgerInterface.h>
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
+#include <bcos-framework/interfaces/protocol/TransactionSubmitResultFactory.h>
+#include <bcos-framework/interfaces/txpool/TxPoolInterface.h>
 #include <bcos-framework/libsync/SyncConfig.h>
 namespace bcos
 {
@@ -36,13 +38,16 @@ class BlockSyncConfig : public SyncConfig
 public:
     using Ptr = std::shared_ptr<BlockSyncConfig>;
     BlockSyncConfig(bcos::crypto::PublicPtr _nodeId, bcos::ledger::LedgerInterface::Ptr _ledger,
-        bcos::protocol::BlockFactory::Ptr _blockFactory,
+        bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::protocol::BlockFactory::Ptr _blockFactory,
+        bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory,
         bcos::front::FrontServiceInterface::Ptr _frontService,
         bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
         bcos::consensus::ConsensusInterface::Ptr _consensus, BlockSyncMsgFactory::Ptr _msgFactory)
       : SyncConfig(_nodeId),
         m_ledger(_ledger),
+        m_txpool(_txpool),
         m_blockFactory(_blockFactory),
+        m_txResultFactory(_txResultFactory),
         m_frontService(_frontService),
         m_dispatcher(_dispatcher),
         m_consensus(_consensus),
@@ -91,12 +96,20 @@ public:
     void setExecutedBlock(bcos::protocol::BlockNumber _executedBlock);
     bcos::protocol::BlockNumber executedBlock() { return m_executedBlock; }
 
+    bcos::txpool::TxPoolInterface::Ptr txpool() { return m_txpool; }
+    bcos::protocol::TransactionSubmitResultFactory::Ptr txResultFactory()
+    {
+        return m_txResultFactory;
+    }
+
 protected:
     void setHash(bcos::crypto::HashType const& _hash);
 
 private:
     bcos::ledger::LedgerInterface::Ptr m_ledger;
+    bcos::txpool::TxPoolInterface::Ptr m_txpool;
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
+    bcos::protocol::TransactionSubmitResultFactory::Ptr m_txResultFactory;
     bcos::front::FrontServiceInterface::Ptr m_frontService;
     bcos::dispatcher::DispatcherInterface::Ptr m_dispatcher;
     bcos::consensus::ConsensusInterface::Ptr m_consensus;
