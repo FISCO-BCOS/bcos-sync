@@ -28,6 +28,10 @@ using namespace bcos::ledger;
 
 void BlockSyncConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
 {
+    if (_ledgerConfig->blockNumber() <= m_blockNumber && m_blockNumber > 0)
+    {
+        return;
+    }
     resetBlockInfo(_ledgerConfig->blockNumber(), _ledgerConfig->hash());
     setConsensusNodeList(_ledgerConfig->consensusNodeList());
     setObserverList(_ledgerConfig->observerNodeList());

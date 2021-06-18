@@ -30,4 +30,4 @@ find_package(bcos-framework)
 hunter_add_package(wedpr-crypto)
 find_package(wedpr-crypto CONFIG REQUIRED)
 
-target_link_libraries(${TEST_BINARY_NAME} bcos-framework::protocol-pb ${BLOCK_SYNC_TARGET} Boost::unit_test_framework wedpr-crypto::crypto)
+target_link_libraries(${TEST_BINARY_NAME} bcos-framework::table bcos-framework::protocol-pb ${BLOCK_SYNC_TARGET} Boost::unit_test_framework wedpr-crypto::crypto)

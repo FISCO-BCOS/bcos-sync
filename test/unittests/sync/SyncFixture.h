@@ -23,9 +23,11 @@
 #include "bcos-sync/BlockSync.h"
 #include "bcos-sync/BlockSyncFactory.h"
 #include <bcos-framework/interfaces/consensus/ConsensusNode.h>
+#include <bcos-framework/libprotocol/TransactionSubmitResultFactoryImpl.h>
 #include <bcos-framework/testutils/faker/FakeDispatcher.h>
 #include <bcos-framework/testutils/faker/FakeFrontService.h>
 #include <bcos-framework/testutils/faker/FakeLedger.h>
+#include <bcos-framework/testutils/faker/FakeTxPool.h>
 
 using namespace bcos;
 using namespace bcos::sync;
@@ -57,7 +59,9 @@ public:
     FakeBlockSyncFactory(PublicPtr _nodeId, BlockFactory::Ptr _blockFactory,
         LedgerInterface::Ptr _ledger, FrontServiceInterface::Ptr _frontService,
         DispatcherInterface::Ptr _dispatcher, ConsensusInterface::Ptr _consensus)
-      : BlockSyncFactory(_nodeId, _blockFactory, _ledger, _frontService, _dispatcher, _consensus)
+      : BlockSyncFactory(_nodeId, _blockFactory,
+            std::make_shared<bcos::protocol::TransactionSubmitResultFactoryImpl>(), _ledger,
+            std::make_shared<FakeTxPool>(), _frontService, _dispatcher, _consensus)
     {
         m_sync = std::make_shared<FakeBlockSync>(m_syncConfig);
     }

@@ -19,7 +19,7 @@
  * @date 2021-05-24
  */
 #include "bcos-sync/BlockSync.h"
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 
 using namespace bcos;
 using namespace bcos::sync;
@@ -37,7 +37,8 @@ BlockSync::BlockSync(BlockSyncConfig::Ptr _config, unsigned _idleWaitMs)
     m_sendBlockProcessor = std::make_shared<bcos::ThreadPool>("SyncSend", 1);
     m_downloadingTimer = std::make_shared<Timer>(m_config->downloadTimeout());
     m_downloadingTimer->registerTimeoutHandler(boost::bind(&BlockSync::onDownloadTimeout, this));
-    m_downloadingQueue->registerNewBlockHandler(boost::bind(&BlockSync::onNewBlock, this, _1));
+    m_downloadingQueue->registerNewBlockHandler(
+        boost::bind(&BlockSync::onNewBlock, this, boost::placeholders::_1));
 }
 
 void BlockSync::start()
@@ -133,11 +134,19 @@ void BlockSync::workerProcessLoop()
 {
     while (workerState() == WorkerState::Started)
     {
-        executeWorker();
-        if (idleWaitMs())
+        try
         {
-            boost::unique_lock<boost::mutex> l(x_signalled);
-            m_signalled.wait_for(l, boost::chrono::milliseconds(idleWaitMs()));
+            executeWorker();
+            if (idleWaitMs())
+            {
+                boost::unique_lock<boost::mutex> l(x_signalled);
+                m_signalled.wait_for(l, boost::chrono::milliseconds(idleWaitMs()));
+            }
+        }
+        catch (std::exception const& e)
+        {
+            BLKSYNC_LOG(ERROR) << LOG_DESC("BlockSync executeWorker exception")
+                               << LOG_KV("errorInfo", boost::diagnostic_information(e));
         }
     }
 }
@@ -307,6 +316,7 @@ void BlockSync::tryToRequestBlocks()
         return;
     }
     auto requestToNumber = m_config->knownHighestNumber();
+    m_config->consensus()->notifyHighestSyncingNumber(requestToNumber);
     auto topBlock = m_downloadingQueue->top();
     // The block in BlockQueue is not nextBlock(the BlockQueue missing some block)
     if (topBlock && topBlock->blockHeader()->number() > m_config->nextBlock())

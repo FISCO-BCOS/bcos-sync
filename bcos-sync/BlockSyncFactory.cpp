@@ -26,15 +26,17 @@ using namespace bcos::sync;
 using namespace bcos::tool;
 
 BlockSyncFactory::BlockSyncFactory(bcos::crypto::PublicPtr _nodeId,
-    bcos::protocol::BlockFactory::Ptr _blockFactory, bcos::ledger::LedgerInterface::Ptr _ledger,
+    bcos::protocol::BlockFactory::Ptr _blockFactory,
+    bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory,
+    bcos::ledger::LedgerInterface::Ptr _ledger, bcos::txpool::TxPoolInterface::Ptr _txpool,
     bcos::front::FrontServiceInterface::Ptr _frontService,
     bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
     bcos::consensus::ConsensusInterface::Ptr _consensus)
   : m_ledger(_ledger)
 {
     auto msgFactory = std::make_shared<BlockSyncMsgFactoryImpl>();
-    m_syncConfig = std::make_shared<BlockSyncConfig>(
-        _nodeId, _ledger, _blockFactory, _frontService, _dispatcher, _consensus, msgFactory);
+    m_syncConfig = std::make_shared<BlockSyncConfig>(_nodeId, _ledger, _txpool, _blockFactory,
+        _txResultFactory, _frontService, _dispatcher, _consensus, msgFactory);
     m_sync = std::make_shared<BlockSync>(m_syncConfig);
 }
 

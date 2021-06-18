@@ -75,6 +75,8 @@ public:
 
     LedgerConfig::Ptr ledgerConfig() { return m_ledgerConfig; }
 
+    void notifyHighestSyncingNumber(bcos::protocol::BlockNumber) override {}
+
 private:
     std::atomic_bool m_checkBlockResult = {true};
     LedgerConfig::Ptr m_ledgerConfig;

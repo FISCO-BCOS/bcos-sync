@@ -88,9 +88,13 @@ protected:
     virtual bool isNewerBlock(bcos::protocol::Block::Ptr _block);
 
     virtual void commitBlock(bcos::protocol::Block::Ptr _block);
+    virtual void commitBlockState(bcos::protocol::Block::Ptr _block);
+
     virtual bool checkAndCommitBlock(bcos::protocol::Block::Ptr _block);
     virtual void updateCommitQueue(bcos::protocol::Block::Ptr _block);
     virtual void tryToCommitBlockToLedger();
+
+    virtual void notifyTransactionsResult(bcos::protocol::Block::Ptr _block);
 
 private:
     BlockSyncConfig::Ptr m_config;

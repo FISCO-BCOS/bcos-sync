@@ -219,6 +219,12 @@ void DownloadingQueue::applyBlock(Block::Ptr _block)
                     downloadQueue->m_config->setExecutedBlock(executedBlock);
                     return;
                 }
+                BLKSYNC_LOG(INFO) << LOG_BADGE("Download")
+                                  << LOG_DESC("BlockSync: applyBlock success")
+                                  << LOG_KV("number", _block->blockHeader()->number())
+                                  << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                                  << LOG_KV("nextBlock", downloadQueue->m_config->nextBlock())
+                                  << LOG_KV("node", downloadQueue->m_config->nodeID()->shortHex());
                 // verify and comit the block
                 downloadQueue->updateCommitQueue(_block);
             }
@@ -313,9 +319,67 @@ void DownloadingQueue::tryToCommitBlockToLedger()
     }
 }
 
-void DownloadingQueue::commitBlock(Block::Ptr _block)
+
+void DownloadingQueue::commitBlock(bcos::protocol::Block::Ptr _block)
 {
     BLKSYNC_LOG(INFO) << LOG_DESC("commitBlock")
+                      << LOG_KV("number", _block->blockHeader()->number())
+                      << LOG_KV("hash", _block->blockHeader()->hash().abridged());
+    // commit transaction firstly
+    auto txsData = std::make_shared<std::vector<bytesPointer>>();
+    auto txsSize = _block->transactionsSize();
+    auto txsHashList = std::make_shared<HashList>();
+
+    txsData->resize(txsSize);
+    txsHashList->resize(txsSize);
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, txsSize), [&](const tbb::blocked_range<size_t>& range) {
+            for (size_t i = range.begin(); i < range.end(); ++i)
+            {
+                auto encodedData = _block->transaction(i)->encode(false);
+                (*txsData)[i] = std::make_shared<bytes>(encodedData.begin(), encodedData.end());
+                (*txsHashList)[i] = _block->transaction(i)->hash();
+            }
+        });
+
+    auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
+    m_config->ledger()->asyncStoreTransactions(
+        txsData, txsHashList, [self, _block](Error::Ptr _error) {
+            try
+            {
+                auto downloadingQueue = self.lock();
+                if (!downloadingQueue)
+                {
+                    return;
+                }
+                // store transaction failed
+                if (_error)
+                {
+                    downloadingQueue->m_config->setExecutedBlock(
+                        _block->blockHeader()->number() - 1);
+                    BLKSYNC_LOG(WARNING) << LOG_DESC("commitBlock: store transactions failed")
+                                         << LOG_KV("number", _block->blockHeader()->number())
+                                         << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                                         << LOG_KV("txsSize", _block->transactionsSize());
+                    return;
+                }
+                BLKSYNC_LOG(INFO) << LOG_DESC("commitBlock: store transactions success")
+                                  << LOG_KV("number", _block->blockHeader()->number())
+                                  << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                                  << LOG_KV("txsSize", _block->transactionsSize());
+                downloadingQueue->commitBlockState(_block);
+            }
+            catch (std::exception const& e)
+            {
+                BLKSYNC_LOG(WARNING) << LOG_DESC("commitBlock exception")
+                                     << LOG_KV("error", boost::diagnostic_information(e));
+            }
+        });
+}
+
+void DownloadingQueue::commitBlockState(bcos::protocol::Block::Ptr _block)
+{
+    BLKSYNC_LOG(INFO) << LOG_DESC("commitBlockState")
                       << LOG_KV("number", _block->blockHeader()->number())
                       << LOG_KV("hash", _block->blockHeader()->hash().abridged());
     auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
@@ -332,7 +396,7 @@ void DownloadingQueue::commitBlock(Block::Ptr _block)
                 {
                     downloadingQueue->m_config->setExecutedBlock(
                         _block->blockHeader()->number() - 1);
-                    BLKSYNC_LOG(WARNING) << LOG_DESC("commitBlock failed")
+                    BLKSYNC_LOG(WARNING) << LOG_DESC("commitBlockState failed")
                                          << LOG_KV("number", _block->blockHeader()->number())
                                          << LOG_KV("hash", _block->blockHeader()->hash().abridged())
                                          << LOG_KV("code", _error->errorCode())
@@ -345,9 +409,11 @@ void DownloadingQueue::commitBlock(Block::Ptr _block)
                 // broadcast the status to all the peers
                 // clear the expired cache
                 downloadingQueue->m_newBlockHandler(_ledgerConfig);
+                // notify the txpool the transaction result
+                downloadingQueue->notifyTransactionsResult(_block);
                 // try to commit the next block
                 downloadingQueue->tryToCommitBlockToLedger();
-                BLKSYNC_LOG(INFO) << LOG_DESC("commitBlock success")
+                BLKSYNC_LOG(INFO) << LOG_DESC("commitBlockState success")
                                   << LOG_KV("number", _block->blockHeader()->number())
                                   << LOG_KV("hash", _block->blockHeader()->hash().abridged())
                                   << LOG_KV(
@@ -360,6 +426,34 @@ void DownloadingQueue::commitBlock(Block::Ptr _block)
                                      << LOG_KV("hash", _block->blockHeader()->hash().abridged())
                                      << LOG_KV("error", boost::diagnostic_information(e));
             }
+        });
+}
+
+
+void DownloadingQueue::notifyTransactionsResult(bcos::protocol::Block::Ptr _block)
+{
+    auto results = std::make_shared<bcos::protocol::TransactionSubmitResults>();
+    for (size_t i = 0; i < _block->transactionsSize(); i++)
+    {
+        auto const& hash = _block->transaction(i)->hash();
+        auto txResult =
+            m_config->txResultFactory()->createTxSubmitResult(_block->blockHeader(), hash);
+        txResult->setNonce(_block->transaction(i)->nonce());
+        results->push_back(txResult);
+    }
+    m_config->txpool()->asyncNotifyBlockResult(
+        _block->blockHeader()->number(), results, [_block](Error::Ptr _error) {
+            if (_error == nullptr)
+            {
+                BLKSYNC_LOG(INFO) << LOG_DESC("notify block result success")
+                                  << LOG_KV("number", _block->blockHeader()->number())
+                                  << LOG_KV("hash", _block->blockHeader()->hash().abridged())
+                                  << LOG_KV("txsSize", _block->transactionsSize());
+                return;
+            }
+            BLKSYNC_LOG(INFO) << LOG_DESC("notify block result failed")
+                              << LOG_KV("code", _error->errorCode())
+                              << LOG_KV("msg", _error->errorMessage());
         });
 }
 
