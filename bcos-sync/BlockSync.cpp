@@ -451,27 +451,28 @@ void BlockSync::maintainBlockRequest()
                                << LOG_KV("peer", _p->nodeId()->shortHex());
             for (BlockNumber number = blocksReq->fromNumber(); number < numberLimit; number++)
             {
-                fetchAndSendBlock(_p->nodeId(), number);
+                fetchAndSendBlock(reqQueue, _p->nodeId(), number);
             }
         }
         return true;
     });
 }
 
-void BlockSync::fetchAndSendBlock(PublicPtr _peer, BlockNumber _number)
+void BlockSync::fetchAndSendBlock(
+    DownloadRequestQueue::Ptr _reqQueue, PublicPtr _peer, BlockNumber _number)
 {
     // only fetch blockHeader and transactions
     auto blockFlag = HEADER | TRANSACTIONS;
     auto self = std::weak_ptr<BlockSync>(shared_from_this());
-    m_config->ledger()->asyncGetBlockDataByNumber(
-        _number, blockFlag, [self, _peer, _number](Error::Ptr _error, Block::Ptr _block) {
+    m_config->ledger()->asyncGetBlockDataByNumber(_number, blockFlag,
+        [self, _reqQueue, _peer, _number](Error::Ptr _error, Block::Ptr _block) {
             if (_error != nullptr)
             {
                 BLKSYNC_LOG(WARNING)
                     << LOG_DESC("fetchAndSendBlock failed for asyncGetBlockDataByNumber failed")
                     << LOG_KV("number", _number) << LOG_KV("errorCode", _error->errorCode())
                     << LOG_KV("errorMessage", _error->errorMessage());
-                // TODO: do something when fetch failed
+                _reqQueue->push(_number, 1);
                 return;
             }
             try

@@ -171,7 +171,6 @@ bool DownloadingQueue::isNewerBlock(Block::Ptr _block)
 
 void DownloadingQueue::clearFullQueueIfNotHas(BlockNumber _blockNumber)
 {
-    // TODO: optimize here?
     bool needClear = false;
     {
         ReadGuard l(x_blocks);
@@ -187,6 +186,27 @@ void DownloadingQueue::clearFullQueueIfNotHas(BlockNumber _blockNumber)
     }
 }
 
+bool DownloadingQueue::verifyExecutedBlock(
+    bcos::protocol::Block::Ptr _block, bcos::protocol::BlockHeader::Ptr _blockHeader)
+{
+    // check blockHash(Note: since the ledger check the parentHash before commit, here no need to
+    // check the parentHash)
+    if (_block->blockHeader()->hash() != _blockHeader->hash())
+    {
+        BLKSYNC_LOG(WARNING) << LOG_DESC("verifyExecutedBlock failed for inconsistent hash")
+                             << LOG_KV("orgHash", _block->blockHeader()->hash())
+                             << LOG_KV("executedHash", _blockHeader->hash())
+                             << LOG_KV("orgTxsRoot", _block->blockHeader()->txsRoot())
+                             << LOG_KV("executedTxsRoot", _blockHeader->txsRoot())
+                             << LOG_KV("orgReceiptsRoot", _block->blockHeader()->receiptsRoot())
+                             << LOG_KV("executedReceptsRoot", _blockHeader->receiptsRoot())
+                             << LOG_KV("orgDBHash", _block->blockHeader()->stateRoot())
+                             << LOG_KV("executedDBHash", _blockHeader->stateRoot());
+        return false;
+    }
+    return true;
+}
+
 void DownloadingQueue::applyBlock(Block::Ptr _block)
 {
     BLKSYNC_LOG(INFO) << LOG_BADGE("Download") << LOG_DESC("BlockSync: applyBlock")
@@ -195,7 +215,7 @@ void DownloadingQueue::applyBlock(Block::Ptr _block)
                       << LOG_KV("node", m_config->nodeID()->shortHex());
     auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
     m_config->dispatcher()->asyncExecuteBlock(
-        _block, true, [self, _block](Error::Ptr _error, protocol::BlockHeader::Ptr) {
+        _block, true, [self, _block](Error::Ptr _error, protocol::BlockHeader::Ptr _blockHeader) {
             try
             {
                 auto downloadQueue = self.lock();
@@ -203,6 +223,9 @@ void DownloadingQueue::applyBlock(Block::Ptr _block)
                 {
                     return;
                 }
+                auto config = downloadQueue->m_config;
+                auto executedBlock =
+                    std::max(config->blockNumber(), _block->blockHeader()->number() - 1);
                 // execute/verify exception
                 if (_error != nullptr)
                 {
@@ -212,10 +235,12 @@ void DownloadingQueue::applyBlock(Block::Ptr _block)
                         << LOG_KV("hash", _block->blockHeader()->hash().abridged())
                         << LOG_KV("errorCode", _error->errorCode())
                         << LOG_KV("errorMessage", _error->errorMessage());
-                    auto config = downloadQueue->m_config;
-                    auto executedBlock =
-                        std::max(config->blockNumber(), _block->blockHeader()->number() - 1);
                     // reset the executed number
+                    downloadQueue->m_config->setExecutedBlock(executedBlock);
+                    return;
+                }
+                if (!downloadQueue->verifyExecutedBlock(_block, _blockHeader))
+                {
                     downloadQueue->m_config->setExecutedBlock(executedBlock);
                     return;
                 }
@@ -314,8 +339,8 @@ void DownloadingQueue::tryToCommitBlockToLedger()
         m_commitQueue.top()->blockHeader()->number() == m_config->nextBlock())
     {
         auto block = m_commitQueue.top();
-        checkAndCommitBlock(block);
         m_commitQueue.pop();
+        checkAndCommitBlock(block);
     }
 }
 
@@ -408,6 +433,7 @@ void DownloadingQueue::commitBlockState(bcos::protocol::Block::Ptr _block)
                 // reset the config for the consensus and the blockSync module
                 // broadcast the status to all the peers
                 // clear the expired cache
+                _ledgerConfig->setSealerId(_block->blockHeader()->sealer());
                 downloadingQueue->m_newBlockHandler(_ledgerConfig);
                 // notify the txpool the transaction result
                 downloadingQueue->notifyTransactionsResult(_block);
