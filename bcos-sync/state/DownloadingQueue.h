@@ -95,6 +95,8 @@ protected:
     virtual void tryToCommitBlockToLedger();
 
     virtual void notifyTransactionsResult(bcos::protocol::Block::Ptr _block);
+    virtual bool verifyExecutedBlock(
+        bcos::protocol::Block::Ptr _block, bcos::protocol::BlockHeader::Ptr _blockHeader);
 
 private:
     BlockSyncConfig::Ptr m_config;

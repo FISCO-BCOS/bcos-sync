@@ -77,6 +77,8 @@ public:
 
     void notifyHighestSyncingNumber(bcos::protocol::BlockNumber) override {}
 
+    void asyncNoteUnSealedTxsSize(size_t, std::function<void(Error::Ptr)>) override {}
+
 private:
     std::atomic_bool m_checkBlockResult = {true};
     LedgerConfig::Ptr m_ledgerConfig;

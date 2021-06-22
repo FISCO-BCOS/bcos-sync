@@ -78,7 +78,8 @@ protected:
 
 protected:
     void requestBlocks(bcos::protocol::BlockNumber _from, bcos::protocol::BlockNumber _to);
-    void fetchAndSendBlock(bcos::crypto::PublicPtr _peer, bcos::protocol::BlockNumber _number);
+    void fetchAndSendBlock(DownloadRequestQueue::Ptr _reqQueue, bcos::crypto::PublicPtr _peer,
+        bcos::protocol::BlockNumber _number);
     void printSyncInfo();
 
 protected:
