@@ -62,8 +62,12 @@ public:
       : BlockSyncFactory(_nodeId, _blockFactory,
             std::make_shared<bcos::protocol::TransactionSubmitResultFactoryImpl>(), _ledger,
             std::make_shared<FakeTxPool>(), _frontService, _dispatcher, _consensus)
+    {}
+
+    BlockSync::Ptr createBlockSync() override
     {
-        m_sync = std::make_shared<FakeBlockSync>(m_syncConfig);
+        auto sync = BlockSyncFactory::createBlockSync();
+        return std::make_shared<FakeBlockSync>(sync->config());
     }
 };
 
@@ -82,12 +86,12 @@ public:
         m_consensus = std::make_shared<FakeConsensus>();
 
         m_dispatcher = std::make_shared<FakeDispatcher>();
-        m_blockSyncFactory = std::make_shared<FakeBlockSyncFactory>(m_keyPair->publicKey(),
+        auto blockSyncFactory = std::make_shared<FakeBlockSyncFactory>(m_keyPair->publicKey(),
             m_blockFactory, m_ledger, m_frontService, m_dispatcher, m_consensus);
-        m_sync = std::dynamic_pointer_cast<FakeBlockSync>(m_blockSyncFactory->sync());
+        m_sync = std::dynamic_pointer_cast<FakeBlockSync>(blockSyncFactory->createBlockSync());
         if (_fakeGateWay)
         {
-            _fakeGateWay->addSync(m_keyPair->publicKey(), m_blockSyncFactory->sync());
+            _fakeGateWay->addSync(m_keyPair->publicKey(), m_sync);
         }
         m_frontService->setGateWay(_fakeGateWay);
     }
@@ -95,7 +99,6 @@ public:
     FakeFrontService::Ptr frontService() { return m_frontService; }
     FakeDispatcher::Ptr dispatcher() { return m_dispatcher; }
     FakeConsensus::Ptr consensus() { return m_consensus; }
-    BlockSyncFactory::Ptr blockSyncFactory() { return m_blockSyncFactory; }
     FakeLedger::Ptr ledger() { return m_ledger; }
 
     FakeGateWay::Ptr gateWay() { return m_gateWay; }
@@ -107,8 +110,7 @@ public:
     {
         auto node = std::make_shared<ConsensusNode>(_nodeId);
         m_ledger->ledgerConfig()->mutableObserverList()->emplace_back(node);
-        m_blockSyncFactory->syncConfig()->setObserverList(
-            m_ledger->ledgerConfig()->observerNodeList());
+        m_sync->config()->setObserverList(m_ledger->ledgerConfig()->observerNodeList());
     }
 
     void setObservers(std::vector<NodeIDPtr> _nodeIdList)
@@ -119,9 +121,12 @@ public:
             m_ledger->ledgerConfig()->mutableObserverList()->emplace_back(
                 std::make_shared<ConsensusNode>(node));
         }
-        m_blockSyncFactory->syncConfig()->setObserverList(
-            m_ledger->ledgerConfig()->observerNodeList());
+        m_sync->config()->setObserverList(m_ledger->ledgerConfig()->observerNodeList());
     }
+
+    void init() { m_sync->init(); }
+
+    BlockSyncConfig::Ptr syncConfig() { return m_sync->config(); }
 
 private:
     CryptoSuite::Ptr m_cryptoSuite;
@@ -132,7 +137,6 @@ private:
     FakeFrontService::Ptr m_frontService;
     FakeConsensus::Ptr m_consensus;
     FakeLedger::Ptr m_ledger;
-    FakeBlockSyncFactory::Ptr m_blockSyncFactory;
 
     FakeDispatcher::Ptr m_dispatcher;
     FakeBlockSync::Ptr m_sync;

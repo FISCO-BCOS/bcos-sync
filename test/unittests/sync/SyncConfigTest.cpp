@@ -38,9 +38,9 @@ void testSyncConfig(CryptoSuite::Ptr _cryptoSuite)
 {
     auto gateWay = std::make_shared<FakeGateWay>();
     auto faker = std::make_shared<SyncFixture>(_cryptoSuite, gateWay);
-    faker->blockSyncFactory()->init();
+    faker->init();
     // check the config
-    auto config = faker->blockSyncFactory()->syncConfig();
+    auto config = faker->syncConfig();
     BOOST_CHECK(config->ledger());
     BOOST_CHECK(config->nodeID()->data() == faker->nodeID()->data());
     BOOST_CHECK(config->blockFactory());

@@ -19,6 +19,7 @@
  * @date 2021-05-24
  */
 #include "bcos-sync/BlockSync.h"
+#include <bcos-framework/libtool/LedgerConfigFetcher.h>
 #include <boost/bind/bind.hpp>
 
 using namespace bcos;
@@ -26,6 +27,7 @@ using namespace bcos::sync;
 using namespace bcos::protocol;
 using namespace bcos::crypto;
 using namespace bcos::ledger;
+using namespace bcos::tool;
 
 BlockSync::BlockSync(BlockSyncConfig::Ptr _config, unsigned _idleWaitMs)
   : Worker("syncWorker", _idleWaitMs),
@@ -51,6 +53,26 @@ void BlockSync::start()
     startWorking();
     m_running = true;
     BLKSYNC_LOG(INFO) << LOG_DESC("Start BlockSync");
+}
+
+void BlockSync::init()
+{
+    auto fetcher = std::make_shared<LedgerConfigFetcher>(m_config->ledger());
+    BLKSYNC_LOG(INFO) << LOG_DESC("start fetch the ledger config for block sync module");
+    fetcher->fetchBlockNumberAndHash();
+    fetcher->fetchConsensusNodeList();
+    fetcher->fetchObserverNodeList();
+    fetcher->fetchGenesisHash();
+    fetcher->waitFetchFinished();
+    // set the syncConfig
+    auto genesisHash = fetcher->genesisHash();
+    BLKSYNC_LOG(INFO) << LOG_DESC("fetch the ledger config for block sync module success")
+                      << LOG_KV("number", fetcher->ledgerConfig()->blockNumber())
+                      << LOG_KV("latestHash", fetcher->ledgerConfig()->hash().abridged())
+                      << LOG_KV("genesisHash", genesisHash);
+    m_config->setGenesisHash(genesisHash);
+    m_config->resetConfig(fetcher->ledgerConfig());
+    BLKSYNC_LOG(INFO) << LOG_DESC("init block sync success");
 }
 
 void BlockSync::stop()
