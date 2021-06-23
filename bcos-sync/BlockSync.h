@@ -49,6 +49,9 @@ public:
     void asyncNotifyNewBlock(bcos::ledger::LedgerConfig::Ptr _ledgerConfig,
         std::function<void(Error::Ptr)> _onRecv) override;
 
+    virtual void init();
+    BlockSyncConfig::Ptr config() { return m_config; }
+
 protected:
     void executeWorker() override;
     void workerProcessLoop() override;

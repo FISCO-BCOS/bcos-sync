@@ -20,10 +20,9 @@
  */
 #include "BlockSyncFactory.h"
 #include "protocol/PB/BlockSyncMsgFactoryImpl.h"
-#include <bcos-framework/libtool/LedgerConfigFetcher.h>
+
 using namespace bcos;
 using namespace bcos::sync;
-using namespace bcos::tool;
 
 BlockSyncFactory::BlockSyncFactory(bcos::crypto::PublicPtr _nodeId,
     bcos::protocol::BlockFactory::Ptr _blockFactory,
@@ -32,30 +31,20 @@ BlockSyncFactory::BlockSyncFactory(bcos::crypto::PublicPtr _nodeId,
     bcos::front::FrontServiceInterface::Ptr _frontService,
     bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
     bcos::consensus::ConsensusInterface::Ptr _consensus)
-  : m_ledger(_ledger)
+  : m_nodeId(_nodeId),
+    m_blockFactory(_blockFactory),
+    m_txResultFactory(_txResultFactory),
+    m_ledger(_ledger),
+    m_txpool(_txpool),
+    m_frontService(_frontService),
+    m_dispatcher(_dispatcher),
+    m_consensus(_consensus)
+{}
+
+BlockSync::Ptr BlockSyncFactory::createBlockSync()
 {
     auto msgFactory = std::make_shared<BlockSyncMsgFactoryImpl>();
-    m_syncConfig = std::make_shared<BlockSyncConfig>(_nodeId, _ledger, _txpool, _blockFactory,
-        _txResultFactory, _frontService, _dispatcher, _consensus, msgFactory);
-    m_sync = std::make_shared<BlockSync>(m_syncConfig);
-}
-
-void BlockSyncFactory::init()
-{
-    auto fetcher = std::make_shared<LedgerConfigFetcher>(m_ledger);
-    BLKSYNC_LOG(INFO) << LOG_DESC("start fetch the ledger config for block sync module");
-    fetcher->fetchBlockNumberAndHash();
-    fetcher->fetchConsensusNodeList();
-    fetcher->fetchObserverNodeList();
-    fetcher->fetchGenesisHash();
-    fetcher->waitFetchFinished();
-    // set the syncConfig
-    auto genesisHash = fetcher->genesisHash();
-    BLKSYNC_LOG(INFO) << LOG_DESC("fetch the ledger config for block sync module success")
-                      << LOG_KV("number", fetcher->ledgerConfig()->blockNumber())
-                      << LOG_KV("latestHash", fetcher->ledgerConfig()->hash().abridged())
-                      << LOG_KV("genesisHash", genesisHash);
-    m_syncConfig->setGenesisHash(genesisHash);
-    m_syncConfig->resetConfig(fetcher->ledgerConfig());
-    BLKSYNC_LOG(INFO) << LOG_DESC("init block sync success");
+    auto syncConfig = std::make_shared<BlockSyncConfig>(m_nodeId, m_ledger, m_txpool,
+        m_blockFactory, m_txResultFactory, m_frontService, m_dispatcher, m_consensus, msgFactory);
+    return std::make_shared<BlockSync>(syncConfig);
 }

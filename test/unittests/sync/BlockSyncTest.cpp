@@ -49,8 +49,8 @@ void testRequestAndDownloadBlock(CryptoSuite::Ptr _cryptoSuite)
     newerPeer->setObservers(nodeList);
     lowerPeer->setObservers(nodeList);
 
-    newerPeer->blockSyncFactory()->init();
-    lowerPeer->blockSyncFactory()->init();
+    newerPeer->init();
+    lowerPeer->init();
 
     // maintainPeersConnection
     newerPeer->sync()->executeWorker();
@@ -61,12 +61,10 @@ void testRequestAndDownloadBlock(CryptoSuite::Ptr _cryptoSuite)
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 
-    BOOST_CHECK(newerPeer->blockSyncFactory()->syncConfig()->knownHighestNumber() == maxBlock);
-    BOOST_CHECK(lowerPeer->blockSyncFactory()->syncConfig()->knownHighestNumber() == maxBlock);
-    BOOST_CHECK(lowerPeer->blockSyncFactory()->syncConfig()->knownLatestHash().asBytes() ==
-                latestHash.asBytes());
-    BOOST_CHECK(newerPeer->blockSyncFactory()->syncConfig()->knownLatestHash().asBytes() ==
-                latestHash.asBytes());
+    BOOST_CHECK(newerPeer->syncConfig()->knownHighestNumber() == maxBlock);
+    BOOST_CHECK(lowerPeer->syncConfig()->knownHighestNumber() == maxBlock);
+    BOOST_CHECK(lowerPeer->syncConfig()->knownLatestHash().asBytes() == latestHash.asBytes());
+    BOOST_CHECK(newerPeer->syncConfig()->knownLatestHash().asBytes() == latestHash.asBytes());
     // check request/response blocks
     while (lowerPeer->ledger()->blockNumber() != maxBlock)
     {
@@ -144,11 +142,11 @@ void testComplicatedCase(CryptoSuite::Ptr _cryptoSuite)
     auto invalidFaker = std::make_shared<SyncFixture>(_cryptoSuite, gateWay, 0, sealers);
     nodeList.push_back(invalidFaker->nodeID());
     invalidFaker->setObservers(nodeList);
-    invalidFaker->blockSyncFactory()->init();
+    invalidFaker->init();
     for (auto faker : syncPeerList)
     {
         faker->setObservers(nodeList);
-        faker->blockSyncFactory()->init();
+        faker->init();
     }
     // maintainPeersConnection
     for (auto faker : syncPeerList)
@@ -169,22 +167,19 @@ void testComplicatedCase(CryptoSuite::Ptr _cryptoSuite)
     // check the maxKnownBlockNumber
     for (auto faker : syncPeerList)
     {
-        BOOST_CHECK(faker->blockSyncFactory()->syncConfig()->genesisHash() ==
-                    genesisBlock->blockHeader()->hash());
-        BOOST_CHECK(faker->blockSyncFactory()->syncConfig()->knownLatestHash() ==
-                    latestBlock->blockHeader()->hash());
-        BOOST_CHECK(
-            faker->blockSyncFactory()->syncConfig()->knownHighestNumber() == maxBlockNumber);
+        BOOST_CHECK(faker->syncConfig()->genesisHash() == genesisBlock->blockHeader()->hash());
+        BOOST_CHECK(faker->syncConfig()->knownLatestHash() == latestBlock->blockHeader()->hash());
+        BOOST_CHECK(faker->syncConfig()->knownHighestNumber() == maxBlockNumber);
     }
     auto invalidLedgerData = invalidFaker->ledger()->ledgerData();
     auto invalidLatestBlock = invalidLedgerData[invalidFaker->ledger()->blockNumber()];
     auto invalidGenesisBlock = invalidLedgerData[0];
     BOOST_CHECK(invalidFaker->sync()->syncStatus()->peers()->size() == 1);
-    BOOST_CHECK(invalidFaker->blockSyncFactory()->syncConfig()->genesisHash() ==
-                invalidGenesisBlock->blockHeader()->hash());
-    BOOST_CHECK(invalidFaker->blockSyncFactory()->syncConfig()->knownLatestHash() ==
-                invalidLatestBlock->blockHeader()->hash());
-    BOOST_CHECK(invalidFaker->blockSyncFactory()->syncConfig()->knownHighestNumber() == 0);
+    BOOST_CHECK(
+        invalidFaker->syncConfig()->genesisHash() == invalidGenesisBlock->blockHeader()->hash());
+    BOOST_CHECK(
+        invalidFaker->syncConfig()->knownLatestHash() == invalidLatestBlock->blockHeader()->hash());
+    BOOST_CHECK(invalidFaker->syncConfig()->knownHighestNumber() == 0);
 
     // wait the nodes to sync blocks
     while (!downloadFinish(syncPeerList, maxBlockNumber))

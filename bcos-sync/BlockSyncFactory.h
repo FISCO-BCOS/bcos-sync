@@ -39,15 +39,17 @@ public:
         bcos::consensus::ConsensusInterface::Ptr _consensus);
     virtual ~BlockSyncFactory() {}
 
-    virtual void init();
-    BlockSyncInterface::Ptr sync() { return m_sync; }
-
-    BlockSyncConfig::Ptr syncConfig() { return m_syncConfig; }
+    virtual BlockSync::Ptr createBlockSync();
 
 protected:
+    bcos::crypto::PublicPtr m_nodeId;
+    bcos::protocol::BlockFactory::Ptr m_blockFactory;
+    bcos::protocol::TransactionSubmitResultFactory::Ptr m_txResultFactory;
     bcos::ledger::LedgerInterface::Ptr m_ledger;
-    BlockSync::Ptr m_sync;
-    BlockSyncConfig::Ptr m_syncConfig;
+    bcos::txpool::TxPoolInterface::Ptr m_txpool;
+    bcos::front::FrontServiceInterface::Ptr m_frontService;
+    bcos::dispatcher::DispatcherInterface::Ptr m_dispatcher;
+    bcos::consensus::ConsensusInterface::Ptr m_consensus;
 };
 }  // namespace sync
 }  // namespace bcos
