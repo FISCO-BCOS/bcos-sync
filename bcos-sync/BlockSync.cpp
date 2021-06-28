@@ -210,6 +210,15 @@ void BlockSync::asyncNotifyBlockSyncMessage(Error::Ptr _error, NodeIDPtr _nodeID
     bytesConstRef _data, std::function<void(bytesConstRef _respData)>,
     std::function<void(Error::Ptr _error)> _onRecv)
 {
+    if (!m_running)
+    {
+        if (_onRecv)
+        {
+            _onRecv(std::make_shared<Error>(
+                -1, "The block sync module has not been initialized finished!"));
+        }
+        return;
+    }
     if (_onRecv)
     {
         _onRecv(nullptr);
@@ -262,6 +271,15 @@ void BlockSync::asyncNotifyBlockSyncMessage(Error::Ptr _error, NodeIDPtr _nodeID
 void BlockSync::asyncNotifyNewBlock(
     LedgerConfig::Ptr _ledgerConfig, std::function<void(Error::Ptr)> _onRecv)
 {
+    if (!m_running)
+    {
+        if (_onRecv)
+        {
+            _onRecv(std::make_shared<Error>(
+                -1, "The block sync module has not been initialized finished!"));
+        }
+        return;
+    }
     if (_onRecv)
     {
         _onRecv(nullptr);

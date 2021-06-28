@@ -44,7 +44,9 @@ public:
     using Ptr = std::shared_ptr<FakeBlockSync>;
     FakeBlockSync(BlockSyncConfig::Ptr _config, unsigned _idleWaitMs = 200)
       : BlockSync(_config, _idleWaitMs)
-    {}
+    {
+        m_running = true;
+    }
     ~FakeBlockSync() override {}
 
     void executeWorker() override { BlockSync::executeWorker(); }
