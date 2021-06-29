@@ -65,8 +65,7 @@ public:
     }
 
     // useless for the sync module
-    void asyncNotifyConsensusMessage(bcos::Error::Ptr, NodeIDPtr, bytesConstRef,
-        std::function<void(bytesConstRef _respData)>,
+    void asyncNotifyConsensusMessage(bcos::Error::Ptr, std::string const&, NodeIDPtr, bytesConstRef,
         std::function<void(Error::Ptr _error)>) override
     {}
 

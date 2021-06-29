@@ -73,6 +73,41 @@ void BlockSync::init()
     m_config->setGenesisHash(genesisHash);
     m_config->resetConfig(fetcher->ledgerConfig());
     BLKSYNC_LOG(INFO) << LOG_DESC("init block sync success");
+    initSendResponseHandler();
+}
+
+void BlockSync::initSendResponseHandler()
+{
+    // set the sendResponse callback
+    std::weak_ptr<bcos::front::FrontServiceInterface> weakFrontService = m_config->frontService();
+    m_sendResponseHandler = [weakFrontService](std::string const& _id, int _moduleID,
+                                NodeIDPtr _dstNode, bytesConstRef _data) {
+        try
+        {
+            auto frontService = weakFrontService.lock();
+            if (!frontService)
+            {
+                return;
+            }
+            frontService->asyncSendResponse(
+                _id, _moduleID, _dstNode, _data, [_id, _moduleID, _dstNode](Error::Ptr _error) {
+                    if (_error)
+                    {
+                        BLKSYNC_LOG(WARNING)
+                            << LOG_DESC("sendResonse failed") << LOG_KV("uuid", _id)
+                            << LOG_KV("module", std::to_string(_moduleID))
+                            << LOG_KV("dst", _dstNode->shortHex())
+                            << LOG_KV("code", _error->errorCode())
+                            << LOG_KV("msg", _error->errorMessage());
+                    }
+                });
+        }
+        catch (std::exception const& e)
+        {
+            BLKSYNC_LOG(WARNING) << LOG_DESC("sendResonse exception")
+                                 << LOG_KV("error", boost::diagnostic_information(e));
+        }
+    };
 }
 
 void BlockSync::stop()
@@ -204,6 +239,33 @@ void BlockSync::maintainDownloadingBuffer()
     }
     m_downloadingQueue->clearFullQueueIfNotHas(m_config->nextBlock());
     m_downloadingQueue->flushBufferToQueue();
+}
+
+
+void BlockSync::asyncNotifyBlockSyncMessage(Error::Ptr _error, std::string const& _uuid,
+    NodeIDPtr _nodeID, bytesConstRef _data, std::function<void(Error::Ptr _error)> _onRecv)
+{
+    auto self = std::weak_ptr<BlockSync>(shared_from_this());
+    asyncNotifyBlockSyncMessage(
+        _error, _nodeID, _data,
+        [_uuid, _nodeID, self](bytesConstRef _respData) {
+            try
+            {
+                auto sync = self.lock();
+                if (!sync)
+                {
+                    return;
+                }
+                sync->m_sendResponseHandler(_uuid, ModuleID::BlockSync, _nodeID, _respData);
+            }
+            catch (std::exception e)
+            {
+                BLKSYNC_LOG(WARNING) << LOG_DESC("asyncNotifyBlockSyncMessage sendResponse failed")
+                                     << LOG_KV("error", boost::diagnostic_information(e))
+                                     << LOG_KV("id", _uuid) << LOG_KV("dst", _nodeID->shortHex());
+            }
+        },
+        _onRecv);
 }
 
 void BlockSync::asyncNotifyBlockSyncMessage(Error::Ptr _error, NodeIDPtr _nodeID,
