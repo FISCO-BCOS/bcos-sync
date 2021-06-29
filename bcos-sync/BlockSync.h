@@ -42,8 +42,8 @@ public:
     void stop() override;
 
     // called by the frontService to dispatch message
-    void asyncNotifyBlockSyncMessage(Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
-        bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse,
+    void asyncNotifyBlockSyncMessage(Error::Ptr _error, std::string const& _uuid,
+        bcos::crypto::NodeIDPtr _nodeID, bytesConstRef _data,
         std::function<void(Error::Ptr _error)> _onRecv) override;
 
     void asyncNotifyNewBlock(bcos::ledger::LedgerConfig::Ptr _ledgerConfig,
@@ -53,6 +53,11 @@ public:
     BlockSyncConfig::Ptr config() { return m_config; }
 
 protected:
+    virtual void asyncNotifyBlockSyncMessage(Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
+        bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse,
+        std::function<void(Error::Ptr _error)> _onRecv);
+
+    void initSendResponseHandler();
     void executeWorker() override;
     void workerProcessLoop() override;
     // for message handle
@@ -89,6 +94,10 @@ protected:
     BlockSyncConfig::Ptr m_config;
     SyncPeerStatus::Ptr m_syncStatus;
     DownloadingQueue::Ptr m_downloadingQueue;
+
+    std::function<void(std::string const& _id, int _moduleID, bcos::crypto::NodeIDPtr _dstNode,
+        bytesConstRef _data)>
+        m_sendResponseHandler;
 
     bcos::ThreadPool::Ptr m_downloadBlockProcessor = nullptr;
     bcos::ThreadPool::Ptr m_sendBlockProcessor = nullptr;
