@@ -20,6 +20,7 @@
  */
 #include "bcos-sync/BlockSync.h"
 #include <bcos-framework/libtool/LedgerConfigFetcher.h>
+#include <json/json.h>
 #include <boost/bind/bind.hpp>
 
 using namespace bcos;
@@ -214,6 +215,11 @@ bool BlockSync::shouldSyncing()
     {
         return false;
     }
+    // the node is consensusing the block
+    if (m_config->committedProposalNumber() >= m_config->knownHighestNumber())
+    {
+        return false;
+    }
     if (m_config->executedBlock() >= m_config->knownHighestNumber())
     {
         return false;
@@ -272,15 +278,6 @@ void BlockSync::asyncNotifyBlockSyncMessage(Error::Ptr _error, NodeIDPtr _nodeID
     bytesConstRef _data, std::function<void(bytesConstRef _respData)>,
     std::function<void(Error::Ptr _error)> _onRecv)
 {
-    if (!m_running)
-    {
-        if (_onRecv)
-        {
-            _onRecv(std::make_shared<Error>(
-                -1, "The block sync module has not been initialized finished!"));
-        }
-        return;
-    }
     if (_onRecv)
     {
         _onRecv(nullptr);
@@ -333,15 +330,6 @@ void BlockSync::asyncNotifyBlockSyncMessage(Error::Ptr _error, NodeIDPtr _nodeID
 void BlockSync::asyncNotifyNewBlock(
     LedgerConfig::Ptr _ledgerConfig, std::function<void(Error::Ptr)> _onRecv)
 {
-    if (!m_running)
-    {
-        if (_onRecv)
-        {
-            _onRecv(std::make_shared<Error>(
-                -1, "The block sync module has not been initialized finished!"));
-        }
-        return;
-    }
     if (_onRecv)
     {
         _onRecv(nullptr);
@@ -408,6 +396,11 @@ void BlockSync::downloadFinish()
 
 void BlockSync::tryToRequestBlocks()
 {
+    // wait the downloaded block commit to the ledger, and enable the next batch requests
+    if (m_config->blockNumber() < m_config->executedBlock())
+    {
+        return;
+    }
     if (m_maxRequestNumber <= m_config->blockNumber() ||
         m_maxRequestNumber <= m_config->executedBlock())
     {
@@ -473,7 +466,8 @@ void BlockSync::requestBlocks(BlockNumber _from, BlockNumber _to)
 
             BLKSYNC_LOG(INFO) << LOG_BADGE("Download") << LOG_BADGE("Request")
                               << LOG_DESC("Request blocks") << LOG_KV("from", from)
-                              << LOG_KV("to", to) << LOG_KV("peer", _p->nodeId()->shortHex())
+                              << LOG_KV("to", to) << LOG_KV("curNum", m_config->blockNumber())
+                              << LOG_KV("peer", _p->nodeId()->shortHex())
                               << LOG_KV("node", m_config->nodeID()->shortHex());
 
             ++shard;  // shard move
@@ -528,7 +522,12 @@ void BlockSync::maintainDownloadingQueue()
         m_downloadingQueue->pop();
         m_state = SyncState::Downloading;
         auto blockNumber = block->blockHeader()->number();
+
         m_downloadingQueue->applyBlock(block);
+        BLKSYNC_LOG(INFO) << LOG_BADGE("Download") << LOG_DESC("BlockSync: applyBlock")
+                          << LOG_KV("execNum", block->blockHeader()->number())
+                          << LOG_KV("hash", block->blockHeader()->hash().abridged())
+                          << LOG_KV("node", m_config->nodeID()->shortHex());
         m_config->setExecutedBlock(blockNumber);
         executedBlock = blockNumber;
     }
@@ -671,4 +670,34 @@ void BlockSync::broadcastSyncStatus()
         m_config->frontService()->asyncSendMessageByNodeID(
             ModuleID::BlockSync, _peer, ref(*encodedData), 0, nullptr);
     }
+}
+
+void BlockSync::asyncGetSyncInfo(std::function<void(Error::Ptr, std::string)> _onGetSyncInfo)
+{
+    Json::Value syncInfo;
+    syncInfo["isSyncing"] = isSyncing();
+    syncInfo["genesisHash"] = *toHexString(m_config->genesisHash());
+    syncInfo["nodeId"] = *toHexString(m_config->nodeID()->data());
+
+    int64_t currentNumber = m_config->blockNumber();
+    syncInfo["blockNumber"] = currentNumber;
+    syncInfo["latestHash"] = *toHexString(m_config->hash());
+    syncInfo["knownHighestNumber"] = m_config->knownHighestNumber();
+    syncInfo["knownLatestHash"] = *toHexString(m_config->knownLatestHash());
+
+    Json::Value peersInfo(Json::arrayValue);
+    m_syncStatus->foreachPeer([&](PeerStatus::Ptr _p) {
+        Json::Value info;
+        info["nodeId"] = *toHexString(_p->nodeId()->data());
+        info["genesisHash"] = *toHexString(_p->genesisHash());
+        info["blockNumber"] = _p->number();
+        info["latestHash"] = *toHexString(_p->hash());
+        peersInfo.append(info);
+        return true;
+    });
+
+    syncInfo["peers"] = peersInfo;
+    Json::FastWriter fastWriter;
+    std::string statusStr = fastWriter.write(syncInfo);
+    _onGetSyncInfo(nullptr, statusStr);
 }

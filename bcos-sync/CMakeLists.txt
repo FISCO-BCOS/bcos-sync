@@ -18,4 +18,4 @@ include_directories(./state)
 
 add_library(${BLOCK_SYNC_TARGET} ${SRC_LIST} ${PROTO_SRCS} ${HEADERS} ${PROTO_HDRS})
 target_compile_options(${BLOCK_SYNC_TARGET} PRIVATE -Wno-error -Wno-unused-variable)
-target_link_libraries(${BLOCK_SYNC_TARGET} PUBLIC bcos-framework::utilities bcos-framework::protocol bcos-framework::sync bcos-framework::tool)
+target_link_libraries(${BLOCK_SYNC_TARGET} PUBLIC jsoncpp_lib_static bcos-framework::utilities bcos-framework::protocol bcos-framework::sync bcos-framework::tool)
