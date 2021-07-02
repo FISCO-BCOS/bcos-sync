@@ -102,6 +102,16 @@ public:
         return m_txResultFactory;
     }
 
+    void setCommittedProposalNumber(bcos::protocol::BlockNumber _committedProposalNumber)
+    {
+        m_committedProposalNumber = _committedProposalNumber;
+    }
+
+    bcos::protocol::BlockNumber committedProposalNumber() const
+    {
+        return m_committedProposalNumber;
+    }
+
 protected:
     void setHash(bcos::crypto::HashType const& _hash);
 
@@ -133,6 +143,8 @@ private:
     std::atomic<size_t> m_maxRequestBlocks = {8};
 
     std::atomic<size_t> m_maxShardPerPeer = {2};
+
+    std::atomic<bcos::protocol::BlockNumber> m_committedProposalNumber = {0};
 };
 }  // namespace sync
 }  // namespace bcos

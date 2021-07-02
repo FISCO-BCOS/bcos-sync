@@ -207,15 +207,22 @@ bool DownloadingQueue::verifyExecutedBlock(
     return true;
 }
 
-void DownloadingQueue::applyBlock(Block::Ptr _block)
+void DownloadingQueue::applyBlock(Block::Ptr _block, size_t _retryTime)
 {
-    BLKSYNC_LOG(INFO) << LOG_BADGE("Download") << LOG_DESC("BlockSync: applyBlock")
-                      << LOG_KV("number", _block->blockHeader()->number())
-                      << LOG_KV("hash", _block->blockHeader()->hash().abridged())
-                      << LOG_KV("node", m_config->nodeID()->shortHex());
+    // at most retry one time
+    if (_retryTime >= 2)
+    {
+        BLKSYNC_LOG(WARNING) << LOG_DESC(
+                                    "applyBlock over the max retry time, reset the executedBlock")
+                             << LOG_KV("reset executedBlock", m_config->blockNumber())
+                             << LOG_KV("number", _block->blockHeader()->number())
+                             << LOG_KV("hash", _block->blockHeader()->hash().abridged());
+        m_config->setExecutedBlock(m_config->blockNumber());
+        return;
+    }
     auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
-    m_config->dispatcher()->asyncExecuteBlock(
-        _block, true, [self, _block](Error::Ptr _error, protocol::BlockHeader::Ptr _blockHeader) {
+    m_config->dispatcher()->asyncExecuteBlock(_block, true,
+        [self, _block, _retryTime](Error::Ptr _error, protocol::BlockHeader::Ptr _blockHeader) {
             try
             {
                 auto downloadQueue = self.lock();
@@ -224,24 +231,22 @@ void DownloadingQueue::applyBlock(Block::Ptr _block)
                     return;
                 }
                 auto config = downloadQueue->m_config;
-                auto executedBlock =
-                    std::max(config->blockNumber(), _block->blockHeader()->number() - 1);
                 // execute/verify exception
                 if (_error != nullptr)
                 {
+                    // reset the executed number
                     BLKSYNC_LOG(WARNING)
-                        << LOG_DESC("applyBlock: executing the downloaded block failed")
+                        << LOG_DESC("applyBlock: executing the downloaded block failed and retry")
                         << LOG_KV("number", _block->blockHeader()->number())
                         << LOG_KV("hash", _block->blockHeader()->hash().abridged())
                         << LOG_KV("errorCode", _error->errorCode())
                         << LOG_KV("errorMessage", _error->errorMessage());
-                    // reset the executed number
-                    downloadQueue->m_config->setExecutedBlock(executedBlock);
+                    downloadQueue->applyBlock(_block, (_retryTime + 1));
                     return;
                 }
                 if (!downloadQueue->verifyExecutedBlock(_block, _blockHeader))
                 {
-                    downloadQueue->m_config->setExecutedBlock(executedBlock);
+                    downloadQueue->m_config->setExecutedBlock(config->blockNumber());
                     return;
                 }
                 BLKSYNC_LOG(INFO) << LOG_BADGE("Download")

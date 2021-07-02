@@ -60,6 +60,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 # install dependencies
+hunter_add_package(jsoncpp)
+find_package(jsoncpp CONFIG REQUIRED)
 include(InstallBcosFrameworkDependencies)
 
 # define the generated proto file path

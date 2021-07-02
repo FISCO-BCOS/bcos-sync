@@ -48,6 +48,17 @@ public:
 
     void asyncNotifyNewBlock(bcos::ledger::LedgerConfig::Ptr _ledgerConfig,
         std::function<void(Error::Ptr)> _onRecv) override;
+    void asyncGetSyncInfo(std::function<void(Error::Ptr, std::string)> _onGetSyncInfo) override;
+
+    void asyncNotifyCommittedIndex(bcos::protocol::BlockNumber _number,
+        std::function<void(Error::Ptr _error)> _onRecv) override
+    {
+        m_config->setCommittedProposalNumber(_number);
+        if (_onRecv)
+        {
+            _onRecv(nullptr);
+        }
+    }
 
     virtual void init();
     BlockSyncConfig::Ptr config() { return m_config; }
