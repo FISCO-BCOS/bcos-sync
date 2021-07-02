@@ -354,7 +354,13 @@ void DownloadingQueue::commitBlock(bcos::protocol::Block::Ptr _block)
 {
     BLKSYNC_LOG(INFO) << LOG_DESC("commitBlock")
                       << LOG_KV("number", _block->blockHeader()->number())
+                      << LOG_KV("txsNum", _block->transactionsSize())
                       << LOG_KV("hash", _block->blockHeader()->hash().abridged());
+    // empty block
+    if (_block->transactionsSize() == 0)
+    {
+        commitBlockState(_block);
+    }
     // commit transaction firstly
     auto txsData = std::make_shared<std::vector<bytesPointer>>();
     auto txsSize = _block->transactionsSize();
