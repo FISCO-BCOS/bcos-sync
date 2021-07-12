@@ -119,6 +119,18 @@ void BlockSync::stop()
         return;
     }
     BLKSYNC_LOG(INFO) << LOG_DESC("Stop BlockSync");
+    if (m_downloadBlockProcessor)
+    {
+        m_downloadBlockProcessor->stop();
+    }
+    if (m_sendBlockProcessor)
+    {
+        m_sendBlockProcessor->stop();
+    }
+    if (m_downloadingTimer)
+    {
+        m_downloadingTimer->destroy();
+    }
     m_running = false;
     finishWorker();
     if (isWorking())
