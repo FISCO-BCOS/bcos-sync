@@ -120,6 +120,7 @@ protected:
 
     boost::condition_variable m_signalled;
     boost::mutex x_signalled;
+    bcos::protocol::BlockNumber m_waterMark = 10;
 };
 }  // namespace sync
 }  // namespace bcos

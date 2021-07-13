@@ -516,6 +516,17 @@ void BlockSync::maintainDownloadingQueue()
     {
         return;
     }
+
+    // limit the executed blockNumber
+    if (executedBlock >= (m_config->blockNumber() + m_waterMark))
+    {
+        BLKSYNC_LOG(WARNING)
+            << LOG_DESC("too many executed blocks have not been committed, stop execute new block")
+            << LOG_KV("curNumber", m_config->blockNumber())
+            << LOG_KV("executedBlock", executedBlock);
+        return;
+    }
+
     auto expectedBlock = executedBlock + 1;
     auto topNumber = m_downloadingQueue->top()->blockHeader()->number();
     if (topNumber > (expectedBlock))
