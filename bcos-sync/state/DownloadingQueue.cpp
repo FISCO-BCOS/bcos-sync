@@ -20,6 +20,7 @@
  */
 #include "DownloadingQueue.h"
 #include "bcos-sync/utilities/Common.h"
+#include <future>
 
 using namespace std;
 using namespace bcos;
@@ -382,13 +383,16 @@ void DownloadingQueue::commitBlock(bcos::protocol::Block::Ptr _block)
         });
     auto startT = utcTime();
     auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
+
+    std::promise<bool> canCommitState;
     m_config->ledger()->asyncStoreTransactions(
-        txsData, txsHashList, [self, startT, _block](Error::Ptr _error) {
+        txsData, txsHashList, [self, startT, _block, &canCommitState](Error::Ptr _error) {
             try
             {
                 auto downloadingQueue = self.lock();
                 if (!downloadingQueue)
                 {
+                    canCommitState.set_value(false);
                     return;
                 }
                 // store transaction failed
@@ -400,6 +404,7 @@ void DownloadingQueue::commitBlock(bcos::protocol::Block::Ptr _block)
                                          << LOG_KV("number", _block->blockHeader()->number())
                                          << LOG_KV("hash", _block->blockHeader()->hash().abridged())
                                          << LOG_KV("txsSize", _block->transactionsSize());
+                    canCommitState.set_value(false);
                     return;
                 }
                 BLKSYNC_LOG(INFO) << LOG_DESC("commitBlock: store transactions success")
@@ -407,14 +412,20 @@ void DownloadingQueue::commitBlock(bcos::protocol::Block::Ptr _block)
                                   << LOG_KV("hash", _block->blockHeader()->hash().abridged())
                                   << LOG_KV("txsSize", _block->transactionsSize())
                                   << LOG_KV("storeTxsTimeCost", (utcTime() - startT));
-                downloadingQueue->commitBlockState(_block);
+                canCommitState.set_value(true);
             }
             catch (std::exception const& e)
             {
+                canCommitState.set_value(false);
                 BLKSYNC_LOG(WARNING) << LOG_DESC("commitBlock exception")
                                      << LOG_KV("error", boost::diagnostic_information(e));
             }
         });
+    if (!canCommitState.get_future().get())
+    {
+        return;
+    }
+    commitBlockState(_block);
 }
 
 void DownloadingQueue::commitBlockState(bcos::protocol::Block::Ptr _block)
