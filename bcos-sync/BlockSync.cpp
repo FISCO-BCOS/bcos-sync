@@ -700,7 +700,7 @@ void BlockSync::asyncGetSyncInfo(std::function<void(Error::Ptr, std::string)> _o
     Json::Value syncInfo;
     syncInfo["isSyncing"] = isSyncing();
     syncInfo["genesisHash"] = *toHexString(m_config->genesisHash());
-    syncInfo["nodeId"] = *toHexString(m_config->nodeID()->data());
+    syncInfo["nodeID"] = *toHexString(m_config->nodeID()->data());
 
     int64_t currentNumber = m_config->blockNumber();
     syncInfo["blockNumber"] = currentNumber;
@@ -711,7 +711,7 @@ void BlockSync::asyncGetSyncInfo(std::function<void(Error::Ptr, std::string)> _o
     Json::Value peersInfo(Json::arrayValue);
     m_syncStatus->foreachPeer([&](PeerStatus::Ptr _p) {
         Json::Value info;
-        info["nodeId"] = *toHexString(_p->nodeId()->data());
+        info["nodeID"] = *toHexString(_p->nodeId()->data());
         info["genesisHash"] = *toHexString(_p->genesisHash());
         info["blockNumber"] = _p->number();
         info["latestHash"] = *toHexString(_p->hash());
