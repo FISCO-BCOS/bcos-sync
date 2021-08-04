@@ -376,9 +376,11 @@ void DownloadingQueue::commitBlock(bcos::protocol::Block::Ptr _block)
         tbb::blocked_range<size_t>(0, txsSize), [&](const tbb::blocked_range<size_t>& range) {
             for (size_t i = range.begin(); i < range.end(); ++i)
             {
-                auto encodedData = _block->transaction(i)->encode(false);
+                // maintain lifetime for tx
+                auto tx = _block->transaction(i);
+                auto encodedData = tx->encode(false);
                 (*txsData)[i] = std::make_shared<bytes>(encodedData.begin(), encodedData.end());
-                (*txsHashList)[i] = _block->transaction(i)->hash();
+                (*txsHashList)[i] = tx->hash();
             }
         });
     auto startT = utcTime();
@@ -479,10 +481,13 @@ void DownloadingQueue::notifyTransactionsResult(bcos::protocol::Block::Ptr _bloc
     auto results = std::make_shared<bcos::protocol::TransactionSubmitResults>();
     for (size_t i = 0; i < _block->transactionsSize(); i++)
     {
-        auto const& hash = _block->transaction(i)->hash();
+        // Note: must get tx firstly to maintain the lifetime caused by the tars protocol
+        // implementation
+        auto tx = _block->transaction(i);
+        auto const& hash = tx->hash();
         auto txResult =
             m_config->txResultFactory()->createTxSubmitResult(_block->blockHeader(), hash);
-        txResult->setNonce(_block->transaction(i)->nonce());
+        txResult->setNonce(tx->nonce());
         results->push_back(txResult);
     }
     m_config->txpool()->asyncNotifyBlockResult(
