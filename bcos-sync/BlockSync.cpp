@@ -710,6 +710,11 @@ void BlockSync::asyncGetSyncInfo(std::function<void(Error::Ptr, std::string)> _o
 
     Json::Value peersInfo(Json::arrayValue);
     m_syncStatus->foreachPeer([&](PeerStatus::Ptr _p) {
+        // not print the status of the node-self
+        if (_p->nodeId() == m_config->nodeID())
+        {
+            return true;
+        }
         Json::Value info;
         info["nodeID"] = *toHexString(_p->nodeId()->data());
         info["genesisHash"] = *toHexString(_p->genesisHash());
