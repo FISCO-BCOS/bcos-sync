@@ -124,6 +124,12 @@ public:
                 std::make_shared<ConsensusNode>(node));
         }
         m_sync->config()->setObserverList(m_ledger->ledgerConfig()->observerNodeList());
+        bcos::crypto::NodeIDSet nodeIdSet;
+        for (auto node : m_ledger->ledgerConfig()->observerNodeList())
+        {
+            nodeIdSet.insert(node->nodeID());
+        }
+        m_sync->config()->setConnectedNodeList(nodeIdSet);
     }
 
     void init() { m_sync->init(); }
