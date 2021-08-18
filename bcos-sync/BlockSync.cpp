@@ -668,6 +668,10 @@ void BlockSync::maintainPeersConnection()
     // Delete uncorrelated peers
     NodeIDs peersToDelete;
     m_syncStatus->foreachPeer([&](PeerStatus::Ptr _p) {
+        if (_p->nodeId() == m_config->nodeID())
+        {
+            return true;
+        }
         if (!m_config->connected(_p->nodeId()))
         {
             peersToDelete.emplace_back(_p->nodeId());
