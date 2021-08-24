@@ -380,7 +380,9 @@ void BlockSync::asyncNotifyNewBlock(
     }
     BLKSYNC_LOG(DEBUG) << LOG_DESC("asyncNotifyNewBlock: receive new block info")
                        << LOG_KV("number", _ledgerConfig->blockNumber())
-                       << LOG_KV("hash", _ledgerConfig->hash().abridged());
+                       << LOG_KV("hash", _ledgerConfig->hash().abridged())
+                       << LOG_KV("consNodeSize", _ledgerConfig->consensusNodeList().size())
+                       << LOG_KV("observerNodeSize", _ledgerConfig->observerNodeList().size());
     if (_ledgerConfig->blockNumber() > m_config->blockNumber())
     {
         onNewBlock(_ledgerConfig);
