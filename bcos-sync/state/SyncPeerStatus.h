@@ -34,6 +34,7 @@ public:
     PeerStatus(BlockSyncConfig::Ptr _config, bcos::crypto::PublicPtr _nodeId,
         bcos::protocol::BlockNumber _number, bcos::crypto::HashType const& _hash,
         bcos::crypto::HashType const& _gensisHash);
+    PeerStatus(BlockSyncConfig::Ptr _config, bcos::crypto::PublicPtr _nodeId);
 
     PeerStatus(BlockSyncConfig::Ptr _config, bcos::crypto::PublicPtr _nodeId,
         BlockSyncStatusInterface::ConstPtr _status);
@@ -90,6 +91,7 @@ public:
     void foreachPeerRandom(std::function<bool(PeerStatus::Ptr)> const& _f) const;
     void foreachPeer(std::function<bool(PeerStatus::Ptr)> const& _f) const;
     std::shared_ptr<bcos::crypto::NodeIDs> peers();
+    PeerStatus::Ptr insertEmptyPeer(bcos::crypto::PublicPtr _peer);
 
 protected:
     virtual void updateKnownMaxBlockInfo(BlockSyncStatusInterface::ConstPtr _peerStatus);
