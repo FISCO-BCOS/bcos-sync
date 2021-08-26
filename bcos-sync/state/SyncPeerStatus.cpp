@@ -34,6 +34,10 @@ PeerStatus::PeerStatus(BlockSyncConfig::Ptr _config, PublicPtr _nodeId, BlockNum
     m_downloadRequests(std::make_shared<DownloadRequestQueue>(_config, m_nodeId))
 {}
 
+PeerStatus::PeerStatus(BlockSyncConfig::Ptr _config, PublicPtr _nodeId)
+  : PeerStatus(_config, _nodeId, 0, HashType(), HashType())
+{}
+
 PeerStatus::PeerStatus(
     BlockSyncConfig::Ptr _config, PublicPtr _nodeId, BlockSyncStatusInterface::ConstPtr _status)
   : PeerStatus(_config, _nodeId, _status->number(), _status->hash(), _status->genesisHash())
@@ -42,11 +46,11 @@ PeerStatus::PeerStatus(
 bool PeerStatus::update(BlockSyncStatusInterface::ConstPtr _status)
 {
     UpgradableGuard l(x_mutex);
-    if (_status->number() <= m_number)
+    if (m_hash != HashType() && _status->number() <= m_number)
     {
         return false;
     }
-    if (_status->genesisHash() != m_genesisHash)
+    if (m_genesisHash != HashType() && _status->genesisHash() != m_genesisHash)
     {
         BLKSYNC_LOG(WARNING) << LOG_BADGE("Status")
                              << LOG_DESC(
@@ -59,7 +63,10 @@ bool PeerStatus::update(BlockSyncStatusInterface::ConstPtr _status)
     UpgradeGuard ul(l);
     m_number = _status->number();
     m_hash = _status->hash();
-
+    if (m_genesisHash == HashType())
+    {
+        m_genesisHash = _status->genesisHash();
+    }
     BLKSYNC_LOG(DEBUG) << LOG_DESC("updatePeerStatus") << LOG_KV("peer", m_nodeId->shortHex())
                        << LOG_KV("number", _status->number())
                        << LOG_KV("hash", _status->hash().abridged())
@@ -81,6 +88,15 @@ PeerStatus::Ptr SyncPeerStatus::peerStatus(bcos::crypto::PublicPtr _peer)
         return nullptr;
     }
     return m_peersStatus[_peer];
+}
+
+PeerStatus::Ptr SyncPeerStatus::insertEmptyPeer(PublicPtr _peer)
+{
+    WriteGuard l(x_peersStatus);
+    // create and insert the new peer status
+    auto peerStatus = std::make_shared<PeerStatus>(m_config, _peer);
+    m_peersStatus.insert(std::make_pair(_peer, peerStatus));
+    return peerStatus;
 }
 
 bool SyncPeerStatus::updatePeerStatus(

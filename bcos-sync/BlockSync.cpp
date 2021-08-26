@@ -398,6 +398,11 @@ void BlockSync::onNewBlock(bcos::ledger::LedgerConfig::Ptr _ledgerConfig)
 
 void BlockSync::onPeerStatus(NodeIDPtr _nodeID, BlockSyncMsgInterface::Ptr _syncMsg)
 {
+    // receive peer not exist in the group
+    if (!m_config->existsInGroup(_nodeID))
+    {
+        return;
+    }
     auto statusMsg = m_config->msgFactory()->createBlockSyncStatusMsg(_syncMsg);
     m_syncStatus->updatePeerStatus(_nodeID, statusMsg);
 }
@@ -420,11 +425,30 @@ void BlockSync::onPeerBlocksRequest(NodeIDPtr _nodeID, BlockSyncMsgInterface::Pt
                       << LOG_KV("from", blockRequest->number())
                       << LOG_KV("size", blockRequest->size());
     auto peerStatus = m_syncStatus->peerStatus(_nodeID);
+    if (!peerStatus && m_config->existsInGroup(_nodeID))
+    {
+        BLKSYNC_LOG(INFO) << LOG_BADGE("Download") << LOG_BADGE("onPeerBlocksRequest")
+                          << LOG_DESC(
+                                 "Receive block request from the node belongs to the group but "
+                                 "with no peer status, create status now")
+                          << LOG_KV("peer", _nodeID ? _nodeID->shortHex() : "unknown")
+                          << LOG_KV("curNum", m_config->blockNumber())
+                          << LOG_KV("from", blockRequest->number())
+                          << LOG_KV("size", blockRequest->size());
+        // the node belongs to the group, insert the status into the peer
+        peerStatus = m_syncStatus->insertEmptyPeer(_nodeID);
+    }
     if (peerStatus)
     {
         peerStatus->downloadRequests()->push(blockRequest->number(), blockRequest->size());
         m_signalled.notify_all();
+        return;
     }
+    BLKSYNC_LOG(WARNING) << LOG_BADGE("Download") << LOG_BADGE("onPeerBlocksRequest")
+                         << LOG_DESC("Receive block request from the unknown peer, drop directly")
+                         << LOG_KV("peer", _nodeID ? _nodeID->shortHex() : "unknown")
+                         << LOG_KV("from", blockRequest->number())
+                         << LOG_KV("size", blockRequest->size());
 }
 
 void BlockSync::onDownloadTimeout()
@@ -718,10 +742,17 @@ void BlockSync::maintainPeersConnection()
 
 void BlockSync::broadcastSyncStatus()
 {
-    auto peers = m_syncStatus->peers();
-    for (auto const& _peer : *peers)
+    // broadcast sync status for all connected nodes that belongs to the group
+    auto nodeList = m_config->groupNodeList();
+    for (auto node : nodeList)
     {
-        if (_peer->data() == m_config->nodeID()->data())
+        // the node self
+        if (node->data() == m_config->nodeID()->data())
+        {
+            continue;
+        }
+        // not connected
+        if (!m_config->connected(node))
         {
             continue;
         }
@@ -732,9 +763,9 @@ void BlockSync::broadcastSyncStatus()
                            << LOG_KV("number", statusMsg->number())
                            << LOG_KV("genesisHash", statusMsg->genesisHash().abridged())
                            << LOG_KV("currentHash", statusMsg->hash().abridged())
-                           << LOG_KV("peer", _peer->shortHex());
+                           << LOG_KV("peer", node->shortHex());
         m_config->frontService()->asyncSendMessageByNodeID(
-            ModuleID::BlockSync, _peer, ref(*encodedData), 0, nullptr);
+            ModuleID::BlockSync, node, ref(*encodedData), 0, nullptr);
     }
 }
 
