@@ -32,12 +32,8 @@ void BlockSyncConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
     {
         return;
     }
-    resetBlockInfo(_ledgerConfig->blockNumber(), _ledgerConfig->hash());
-    setConsensusNodeList(_ledgerConfig->consensusNodeList());
-    setObserverList(_ledgerConfig->observerNodeList());
-    BLKSYNC_LOG(INFO) << LOG_DESC("BlockSyncConfig resetConfig") << LOG_KV("number", m_blockNumber)
-                      << LOG_KV("consNodeSize", consensusNodeList().size())
-                      << LOG_KV("observerNodeSize", observerNodeList().size());
+    // must resetConfig for the consensus module firstly for the following block check depends on
+    // the consensus config
     m_consensus->asyncNotifyNewBlock(_ledgerConfig, [_ledgerConfig](Error::Ptr _error) {
         if (!_error)
         {
@@ -49,6 +45,13 @@ void BlockSyncConfig::resetConfig(LedgerConfig::Ptr _ledgerConfig)
                              << LOG_KV("error", _error->errorCode())
                              << LOG_KV("msg", _error->errorMessage());
     });
+
+    resetBlockInfo(_ledgerConfig->blockNumber(), _ledgerConfig->hash());
+    setConsensusNodeList(_ledgerConfig->consensusNodeList());
+    setObserverList(_ledgerConfig->observerNodeList());
+    BLKSYNC_LOG(INFO) << LOG_DESC("BlockSyncConfig resetConfig") << LOG_KV("number", m_blockNumber)
+                      << LOG_KV("consNodeSize", consensusNodeList().size())
+                      << LOG_KV("observerNodeSize", observerNodeList().size());
 }
 
 void BlockSyncConfig::setGenesisHash(HashType const& _hash)
