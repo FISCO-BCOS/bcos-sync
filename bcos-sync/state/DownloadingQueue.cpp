@@ -337,6 +337,10 @@ void DownloadingQueue::updateCommitQueue(Block::Ptr _block)
 void DownloadingQueue::tryToCommitBlockToLedger()
 {
     WriteGuard l(x_commitQueue);
+    if (m_commitQueue.empty())
+    {
+        return;
+    }
     // remove expired block
     while (!m_commitQueue.empty() &&
            m_commitQueue.top()->blockHeader()->number() <= m_config->blockNumber())

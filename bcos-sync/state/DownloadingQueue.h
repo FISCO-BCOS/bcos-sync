@@ -79,6 +79,7 @@ public:
     // flush m_buffer into queue
     virtual void flushBufferToQueue();
     virtual void clearExpiredQueueCache();
+    virtual void tryToCommitBlockToLedger();
 
 protected:
     // clear queue
@@ -92,7 +93,6 @@ protected:
 
     virtual bool checkAndCommitBlock(bcos::protocol::Block::Ptr _block);
     virtual void updateCommitQueue(bcos::protocol::Block::Ptr _block);
-    virtual void tryToCommitBlockToLedger();
 
     virtual void notifyTransactionsResult(bcos::protocol::Block::Ptr _block);
     virtual bool verifyExecutedBlock(

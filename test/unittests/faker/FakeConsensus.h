@@ -44,7 +44,7 @@ public:
 
     // useless for bcos-sync
     void asyncSubmitProposal(
-        bytesConstRef, BlockNumber, HashType const&, std::function<void(Error::Ptr)>) override
+        bool, bytesConstRef, BlockNumber, HashType const&, std::function<void(Error::Ptr)>) override
     {}
 
     // useless for bcos-sync

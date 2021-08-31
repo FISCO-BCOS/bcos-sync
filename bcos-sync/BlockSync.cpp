@@ -386,6 +386,8 @@ void BlockSync::asyncNotifyNewBlock(
     if (_ledgerConfig->blockNumber() > m_config->blockNumber())
     {
         onNewBlock(_ledgerConfig);
+        // try to commitBlock to ledger when receive new block notification
+        m_downloadingQueue->tryToCommitBlockToLedger();
     }
 }
 
@@ -563,6 +565,7 @@ void BlockSync::maintainDownloadingQueue()
         downloadFinish();
         return;
     }
+    m_downloadingQueue->tryToCommitBlockToLedger();
     auto executedBlock = m_config->executedBlock();
     // remove the expired block
     while (m_downloadingQueue->top() &&
