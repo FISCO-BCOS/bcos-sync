@@ -94,7 +94,8 @@ protected:
     virtual bool checkAndCommitBlock(bcos::protocol::Block::Ptr _block);
     virtual void updateCommitQueue(bcos::protocol::Block::Ptr _block);
 
-    virtual void notifyTransactionsResult(bcos::protocol::Block::Ptr _block);
+    virtual void finalizeBlock(
+        bcos::protocol::Block::Ptr _block, bcos::ledger::LedgerConfig::Ptr _ledgerConfig);
     virtual bool verifyExecutedBlock(
         bcos::protocol::Block::Ptr _block, bcos::protocol::BlockHeader::Ptr _blockHeader);
 
