@@ -54,6 +54,20 @@ public:
     SyncPeerStatus::Ptr syncStatus() { return m_syncStatus; }
 };
 
+class FakeTxPoolForSync : public FakeTxPool
+{
+public:
+    FakeTxPoolForSync() = default;
+    void asyncNotifyBlockResult(BlockNumber, TransactionSubmitResultsPtr,
+        std::function<void(Error::Ptr)> _callback) override
+    {
+        if (_callback)
+        {
+            _callback(nullptr);
+        }
+    }
+};
+
 class FakeBlockSyncFactory : public BlockSyncFactory
 {
 public:
@@ -63,7 +77,7 @@ public:
         DispatcherInterface::Ptr _dispatcher, ConsensusInterface::Ptr _consensus)
       : BlockSyncFactory(_nodeId, _blockFactory,
             std::make_shared<bcos::protocol::TransactionSubmitResultFactoryImpl>(), _ledger,
-            std::make_shared<FakeTxPool>(), _frontService, _dispatcher, _consensus)
+            std::make_shared<FakeTxPoolForSync>(), _frontService, _dispatcher, _consensus)
     {}
 
     BlockSync::Ptr createBlockSync() override

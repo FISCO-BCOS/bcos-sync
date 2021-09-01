@@ -451,17 +451,12 @@ void DownloadingQueue::commitBlockState(bcos::protocol::Block::Ptr _block)
                                          << LOG_KV("message", _error->errorMessage());
                     return;
                 }
-
-
+                _ledgerConfig->setSealerId(_block->blockHeader()->sealer());
+                // notify the txpool the transaction result
                 // reset the config for the consensus and the blockSync module
                 // broadcast the status to all the peers
                 // clear the expired cache
-                _ledgerConfig->setSealerId(_block->blockHeader()->sealer());
-                downloadingQueue->m_newBlockHandler(_ledgerConfig);
-                // notify the txpool the transaction result
-                downloadingQueue->notifyTransactionsResult(_block);
-                // try to commit the next block
-                downloadingQueue->tryToCommitBlockToLedger();
+                downloadingQueue->finalizeBlock(_block, _ledgerConfig);
                 BLKSYNC_LOG(INFO) << LOG_DESC("commitBlockState success")
                                   << LOG_KV("number", _block->blockHeader()->number())
                                   << LOG_KV("hash", _block->blockHeader()->hash().abridged())
@@ -480,7 +475,8 @@ void DownloadingQueue::commitBlockState(bcos::protocol::Block::Ptr _block)
 }
 
 
-void DownloadingQueue::notifyTransactionsResult(bcos::protocol::Block::Ptr _block)
+void DownloadingQueue::finalizeBlock(
+    bcos::protocol::Block::Ptr _block, LedgerConfig::Ptr _ledgerConfig)
 {
     auto results = std::make_shared<bcos::protocol::TransactionSubmitResults>();
     for (size_t i = 0; i < _block->transactionsSize(); i++)
@@ -495,7 +491,15 @@ void DownloadingQueue::notifyTransactionsResult(bcos::protocol::Block::Ptr _bloc
         results->push_back(txResult);
     }
     m_config->txpool()->asyncNotifyBlockResult(
-        _block->blockHeader()->number(), results, [_block](Error::Ptr _error) {
+        _block->blockHeader()->number(), results, [this, _block, _ledgerConfig](Error::Ptr _error) {
+            // Note: only resetConfig after notifyBlockResult successfully
+            // reset config and broadcast the sync status
+            if (m_newBlockHandler)
+            {
+                m_newBlockHandler(_ledgerConfig);
+            }
+            // try to commit the next block
+            tryToCommitBlockToLedger();
             if (_error == nullptr)
             {
                 BLKSYNC_LOG(INFO) << LOG_DESC("notify block result success")
