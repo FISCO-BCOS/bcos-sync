@@ -23,6 +23,7 @@
 #include "bcos-sync/state/DownloadingQueue.h"
 #include "bcos-sync/state/SyncPeerStatus.h"
 #include <bcos-framework/interfaces/sync/BlockSyncInterface.h>
+#include <bcos-framework/libutilities/ThreadPool.h>
 #include <bcos-framework/libutilities/Timer.h>
 #include <bcos-framework/libutilities/Worker.h>
 namespace bcos
