@@ -80,6 +80,11 @@ public:
     virtual void flushBufferToQueue();
     virtual void clearExpiredQueueCache();
     virtual void tryToCommitBlockToLedger();
+    virtual size_t commitQueueSize()
+    {
+        ReadGuard l(x_commitQueue);
+        return m_commitQueue.size();
+    }
 
 protected:
     // clear queue

@@ -469,7 +469,8 @@ void BlockSync::downloadFinish()
 void BlockSync::tryToRequestBlocks()
 {
     // wait the downloaded block commit to the ledger, and enable the next batch requests
-    if (m_config->blockNumber() < m_config->executedBlock())
+    if (m_config->blockNumber() < m_config->executedBlock() &&
+        m_downloadingQueue->commitQueueSize() > 0)
     {
         return;
     }
