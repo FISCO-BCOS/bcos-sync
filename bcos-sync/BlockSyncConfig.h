@@ -135,6 +135,7 @@ private:
     std::atomic<bcos::protocol::BlockNumber> m_knownHighestNumber = {0};
     bcos::crypto::HashType m_knownLatestHash;
     mutable SharedMutex x_knownLatestHash;
+    mutable Mutex m_mutex;
 
     std::atomic<size_t> m_maxDownloadingBlockQueueSize = 256;
     std::atomic<size_t> m_maxDownloadRequestQueueSize = 1000;

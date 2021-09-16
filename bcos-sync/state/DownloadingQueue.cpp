@@ -451,6 +451,7 @@ void DownloadingQueue::commitBlockState(bcos::protocol::Block::Ptr _block)
                                          << LOG_KV("message", _error->errorMessage());
                     return;
                 }
+                _ledgerConfig->setTxsSize(_block->transactionsSize());
                 _ledgerConfig->setSealerId(_block->blockHeader()->sealer());
                 // notify the txpool the transaction result
                 // reset the config for the consensus and the blockSync module
