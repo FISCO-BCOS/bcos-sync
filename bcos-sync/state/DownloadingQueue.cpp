@@ -337,6 +337,10 @@ void DownloadingQueue::updateCommitQueue(Block::Ptr _block)
 void DownloadingQueue::tryToCommitBlockToLedger()
 {
     WriteGuard l(x_commitQueue);
+    if (m_commitQueue.empty())
+    {
+        return;
+    }
     // remove expired block
     while (!m_commitQueue.empty() &&
            m_commitQueue.top()->blockHeader()->number() <= m_config->blockNumber())
@@ -376,9 +380,11 @@ void DownloadingQueue::commitBlock(bcos::protocol::Block::Ptr _block)
         tbb::blocked_range<size_t>(0, txsSize), [&](const tbb::blocked_range<size_t>& range) {
             for (size_t i = range.begin(); i < range.end(); ++i)
             {
-                auto encodedData = _block->transaction(i)->encode(false);
+                // maintain lifetime for tx
+                auto tx = _block->transaction(i);
+                auto encodedData = tx->encode(false);
                 (*txsData)[i] = std::make_shared<bytes>(encodedData.begin(), encodedData.end());
-                (*txsHashList)[i] = _block->transaction(i)->hash();
+                (*txsHashList)[i] = tx->hash();
             }
         });
     auto startT = utcTime();
@@ -445,17 +451,13 @@ void DownloadingQueue::commitBlockState(bcos::protocol::Block::Ptr _block)
                                          << LOG_KV("message", _error->errorMessage());
                     return;
                 }
-
-
+                _ledgerConfig->setTxsSize(_block->transactionsSize());
+                _ledgerConfig->setSealerId(_block->blockHeader()->sealer());
+                // notify the txpool the transaction result
                 // reset the config for the consensus and the blockSync module
                 // broadcast the status to all the peers
                 // clear the expired cache
-                _ledgerConfig->setSealerId(_block->blockHeader()->sealer());
-                downloadingQueue->m_newBlockHandler(_ledgerConfig);
-                // notify the txpool the transaction result
-                downloadingQueue->notifyTransactionsResult(_block);
-                // try to commit the next block
-                downloadingQueue->tryToCommitBlockToLedger();
+                downloadingQueue->finalizeBlock(_block, _ledgerConfig);
                 BLKSYNC_LOG(INFO) << LOG_DESC("commitBlockState success")
                                   << LOG_KV("number", _block->blockHeader()->number())
                                   << LOG_KV("hash", _block->blockHeader()->hash().abridged())
@@ -474,19 +476,31 @@ void DownloadingQueue::commitBlockState(bcos::protocol::Block::Ptr _block)
 }
 
 
-void DownloadingQueue::notifyTransactionsResult(bcos::protocol::Block::Ptr _block)
+void DownloadingQueue::finalizeBlock(
+    bcos::protocol::Block::Ptr _block, LedgerConfig::Ptr _ledgerConfig)
 {
     auto results = std::make_shared<bcos::protocol::TransactionSubmitResults>();
     for (size_t i = 0; i < _block->transactionsSize(); i++)
     {
-        auto const& hash = _block->transaction(i)->hash();
+        // Note: must get tx firstly to maintain the lifetime caused by the tars protocol
+        // implementation
+        auto tx = _block->transaction(i);
+        auto const& hash = tx->hash();
         auto txResult =
             m_config->txResultFactory()->createTxSubmitResult(_block->blockHeader(), hash);
-        txResult->setNonce(_block->transaction(i)->nonce());
+        txResult->setNonce(tx->nonce());
         results->push_back(txResult);
     }
     m_config->txpool()->asyncNotifyBlockResult(
-        _block->blockHeader()->number(), results, [_block](Error::Ptr _error) {
+        _block->blockHeader()->number(), results, [this, _block, _ledgerConfig](Error::Ptr _error) {
+            // Note: only resetConfig after notifyBlockResult successfully
+            // reset config and broadcast the sync status
+            if (m_newBlockHandler)
+            {
+                m_newBlockHandler(_ledgerConfig);
+            }
+            // try to commit the next block
+            tryToCommitBlockToLedger();
             if (_error == nullptr)
             {
                 BLKSYNC_LOG(INFO) << LOG_DESC("notify block result success")

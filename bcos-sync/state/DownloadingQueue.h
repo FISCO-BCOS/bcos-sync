@@ -79,6 +79,12 @@ public:
     // flush m_buffer into queue
     virtual void flushBufferToQueue();
     virtual void clearExpiredQueueCache();
+    virtual void tryToCommitBlockToLedger();
+    virtual size_t commitQueueSize()
+    {
+        ReadGuard l(x_commitQueue);
+        return m_commitQueue.size();
+    }
 
 protected:
     // clear queue
@@ -92,9 +98,9 @@ protected:
 
     virtual bool checkAndCommitBlock(bcos::protocol::Block::Ptr _block);
     virtual void updateCommitQueue(bcos::protocol::Block::Ptr _block);
-    virtual void tryToCommitBlockToLedger();
 
-    virtual void notifyTransactionsResult(bcos::protocol::Block::Ptr _block);
+    virtual void finalizeBlock(
+        bcos::protocol::Block::Ptr _block, bcos::ledger::LedgerConfig::Ptr _ledgerConfig);
     virtual bool verifyExecutedBlock(
         bcos::protocol::Block::Ptr _block, bcos::protocol::BlockHeader::Ptr _blockHeader);
 

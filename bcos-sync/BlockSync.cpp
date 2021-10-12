@@ -73,6 +73,38 @@ void BlockSync::init()
                       << LOG_KV("genesisHash", genesisHash);
     m_config->setGenesisHash(genesisHash);
     m_config->resetConfig(fetcher->ledgerConfig());
+    auto self = std::weak_ptr<BlockSync>(shared_from_this());
+    m_config->frontService()->asyncGetNodeIDs(
+        [self](Error::Ptr _error, std::shared_ptr<const crypto::NodeIDs> _nodeIDs) {
+            if (_error != nullptr)
+            {
+                BLKSYNC_LOG(WARNING)
+                    << LOG_DESC("asyncGetNodeIDs failed") << LOG_KV("code", _error->errorCode())
+                    << LOG_KV("msg", _error->errorMessage());
+                return;
+            }
+            try
+            {
+                if (!_nodeIDs || _nodeIDs->size() == 0)
+                {
+                    return;
+                }
+                auto sync = self.lock();
+                if (!sync)
+                {
+                    return;
+                }
+                NodeIDSet nodeIdSet(_nodeIDs->begin(), _nodeIDs->end());
+                sync->config()->setConnectedNodeList(std::move(nodeIdSet));
+                BLKSYNC_LOG(INFO) << LOG_DESC("asyncGetNodeIDs")
+                                  << LOG_KV("connectedSize", _nodeIDs->size());
+            }
+            catch (std::exception const& e)
+            {
+                BLKSYNC_LOG(WARNING) << LOG_DESC("asyncGetNodeIDs exception")
+                                     << LOG_KV("error", boost::diagnostic_information(e));
+            }
+        });
     BLKSYNC_LOG(INFO) << LOG_DESC("init block sync success");
     initSendResponseHandler();
 }
@@ -348,10 +380,14 @@ void BlockSync::asyncNotifyNewBlock(
     }
     BLKSYNC_LOG(DEBUG) << LOG_DESC("asyncNotifyNewBlock: receive new block info")
                        << LOG_KV("number", _ledgerConfig->blockNumber())
-                       << LOG_KV("hash", _ledgerConfig->hash().abridged());
+                       << LOG_KV("hash", _ledgerConfig->hash().abridged())
+                       << LOG_KV("consNodeSize", _ledgerConfig->consensusNodeList().size())
+                       << LOG_KV("observerNodeSize", _ledgerConfig->observerNodeList().size());
     if (_ledgerConfig->blockNumber() > m_config->blockNumber())
     {
         onNewBlock(_ledgerConfig);
+        // try to commitBlock to ledger when receive new block notification
+        m_downloadingQueue->tryToCommitBlockToLedger();
     }
 }
 
@@ -364,6 +400,11 @@ void BlockSync::onNewBlock(bcos::ledger::LedgerConfig::Ptr _ledgerConfig)
 
 void BlockSync::onPeerStatus(NodeIDPtr _nodeID, BlockSyncMsgInterface::Ptr _syncMsg)
 {
+    // receive peer not exist in the group
+    if (!m_config->existsInGroup(_nodeID))
+    {
+        return;
+    }
     auto statusMsg = m_config->msgFactory()->createBlockSyncStatusMsg(_syncMsg);
     m_syncStatus->updatePeerStatus(_nodeID, statusMsg);
 }
@@ -386,11 +427,30 @@ void BlockSync::onPeerBlocksRequest(NodeIDPtr _nodeID, BlockSyncMsgInterface::Pt
                       << LOG_KV("from", blockRequest->number())
                       << LOG_KV("size", blockRequest->size());
     auto peerStatus = m_syncStatus->peerStatus(_nodeID);
+    if (!peerStatus && m_config->existsInGroup(_nodeID))
+    {
+        BLKSYNC_LOG(INFO) << LOG_BADGE("Download") << LOG_BADGE("onPeerBlocksRequest")
+                          << LOG_DESC(
+                                 "Receive block request from the node belongs to the group but "
+                                 "with no peer status, create status now")
+                          << LOG_KV("peer", _nodeID ? _nodeID->shortHex() : "unknown")
+                          << LOG_KV("curNum", m_config->blockNumber())
+                          << LOG_KV("from", blockRequest->number())
+                          << LOG_KV("size", blockRequest->size());
+        // the node belongs to the group, insert the status into the peer
+        peerStatus = m_syncStatus->insertEmptyPeer(_nodeID);
+    }
     if (peerStatus)
     {
         peerStatus->downloadRequests()->push(blockRequest->number(), blockRequest->size());
         m_signalled.notify_all();
+        return;
     }
+    BLKSYNC_LOG(WARNING) << LOG_BADGE("Download") << LOG_BADGE("onPeerBlocksRequest")
+                         << LOG_DESC("Receive block request from the unknown peer, drop directly")
+                         << LOG_KV("peer", _nodeID ? _nodeID->shortHex() : "unknown")
+                         << LOG_KV("from", blockRequest->number())
+                         << LOG_KV("size", blockRequest->size());
 }
 
 void BlockSync::onDownloadTimeout()
@@ -409,7 +469,8 @@ void BlockSync::downloadFinish()
 void BlockSync::tryToRequestBlocks()
 {
     // wait the downloaded block commit to the ledger, and enable the next batch requests
-    if (m_config->blockNumber() < m_config->executedBlock())
+    if (m_config->blockNumber() < m_config->executedBlock() &&
+        m_downloadingQueue->commitQueueSize() > 0)
     {
         return;
     }
@@ -505,6 +566,7 @@ void BlockSync::maintainDownloadingQueue()
         downloadFinish();
         return;
     }
+    m_downloadingQueue->tryToCommitBlockToLedger();
     auto executedBlock = m_config->executedBlock();
     // remove the expired block
     while (m_downloadingQueue->top() &&
@@ -636,6 +698,15 @@ void BlockSync::maintainPeersConnection()
     // Delete uncorrelated peers
     NodeIDs peersToDelete;
     m_syncStatus->foreachPeer([&](PeerStatus::Ptr _p) {
+        if (_p->nodeId() == m_config->nodeID())
+        {
+            return true;
+        }
+        if (!m_config->connected(_p->nodeId()))
+        {
+            peersToDelete.emplace_back(_p->nodeId());
+            return true;
+        }
         if (!m_config->existsInGroup(_p->nodeId()) && m_config->blockNumber() >= _p->number())
         {
             // Only delete outsider whose number is smaller than myself
@@ -661,7 +732,7 @@ void BlockSync::maintainPeersConnection()
         auto newPeerStatus = m_config->msgFactory()->createBlockSyncStatusMsg(
             m_config->blockNumber(), m_config->hash(), m_config->genesisHash());
         m_syncStatus->updatePeerStatus(m_config->nodeID(), newPeerStatus);
-        BLKSYNC_LOG(DEBUG) << LOG_BADGE("Status") << LOG_DESC("Send current status to new peer")
+        BLKSYNC_LOG(TRACE) << LOG_BADGE("Status") << LOG_DESC("Send current status to new peer")
                            << LOG_KV("number", newPeerStatus->number())
                            << LOG_KV("genesisHash", newPeerStatus->genesisHash().abridged())
                            << LOG_KV("currentHash", newPeerStatus->hash().abridged())
@@ -675,23 +746,30 @@ void BlockSync::maintainPeersConnection()
 
 void BlockSync::broadcastSyncStatus()
 {
-    auto peers = m_syncStatus->peers();
-    for (auto const& _peer : *peers)
+    // broadcast sync status for all connected nodes that belongs to the group
+    auto nodeList = m_config->groupNodeList();
+    for (auto node : nodeList)
     {
-        if (_peer->data() == m_config->nodeID()->data())
+        // the node self
+        if (node->data() == m_config->nodeID()->data())
+        {
+            continue;
+        }
+        // not connected
+        if (!m_config->connected(node))
         {
             continue;
         }
         auto statusMsg = m_config->msgFactory()->createBlockSyncStatusMsg(
             m_config->blockNumber(), m_config->hash(), m_config->genesisHash());
         auto encodedData = statusMsg->encode();
-        BLKSYNC_LOG(DEBUG) << LOG_BADGE("Status") << LOG_DESC("Send current status")
+        BLKSYNC_LOG(TRACE) << LOG_BADGE("Status") << LOG_DESC("Send current status")
                            << LOG_KV("number", statusMsg->number())
                            << LOG_KV("genesisHash", statusMsg->genesisHash().abridged())
                            << LOG_KV("currentHash", statusMsg->hash().abridged())
-                           << LOG_KV("peer", _peer->shortHex());
+                           << LOG_KV("peer", node->shortHex());
         m_config->frontService()->asyncSendMessageByNodeID(
-            ModuleID::BlockSync, _peer, ref(*encodedData), 0, nullptr);
+            ModuleID::BlockSync, node, ref(*encodedData), 0, nullptr);
     }
 }
 
@@ -710,6 +788,11 @@ void BlockSync::asyncGetSyncInfo(std::function<void(Error::Ptr, std::string)> _o
 
     Json::Value peersInfo(Json::arrayValue);
     m_syncStatus->foreachPeer([&](PeerStatus::Ptr _p) {
+        // not print the status of the node-self
+        if (_p->nodeId() == m_config->nodeID())
+        {
+            return true;
+        }
         Json::Value info;
         info["nodeID"] = *toHexString(_p->nodeId()->data());
         info["genesisHash"] = *toHexString(_p->genesisHash());
