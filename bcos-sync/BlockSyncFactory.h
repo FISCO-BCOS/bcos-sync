@@ -35,7 +35,7 @@ public:
         bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory,
         bcos::ledger::LedgerInterface::Ptr _ledger, bcos::txpool::TxPoolInterface::Ptr _txpool,
         bcos::front::FrontServiceInterface::Ptr _frontService,
-        bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
+        bcos::scheduler::SchedulerInterface::Ptr _scheduler,
         bcos::consensus::ConsensusInterface::Ptr _consensus);
     virtual ~BlockSyncFactory() {}
 
@@ -48,7 +48,7 @@ protected:
     bcos::ledger::LedgerInterface::Ptr m_ledger;
     bcos::txpool::TxPoolInterface::Ptr m_txpool;
     bcos::front::FrontServiceInterface::Ptr m_frontService;
-    bcos::dispatcher::DispatcherInterface::Ptr m_dispatcher;
+    bcos::scheduler::SchedulerInterface::Ptr m_scheduler;
     bcos::consensus::ConsensusInterface::Ptr m_consensus;
 };
 }  // namespace sync

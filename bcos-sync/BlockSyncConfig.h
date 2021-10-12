@@ -22,7 +22,7 @@
 #include "bcos-sync/interfaces/BlockSyncMsgFactory.h"
 #include <bcos-framework/interfaces/consensus/ConsensusInterface.h>
 #include <bcos-framework/interfaces/crypto/KeyInterface.h>
-#include <bcos-framework/interfaces/dispatcher/DispatcherInterface.h>
+#include <bcos-framework/interfaces/dispatcher/SchedulerInterface.h>
 #include <bcos-framework/interfaces/front/FrontServiceInterface.h>
 #include <bcos-framework/interfaces/ledger/LedgerInterface.h>
 #include <bcos-framework/interfaces/protocol/BlockFactory.h>
@@ -41,7 +41,7 @@ public:
         bcos::txpool::TxPoolInterface::Ptr _txpool, bcos::protocol::BlockFactory::Ptr _blockFactory,
         bcos::protocol::TransactionSubmitResultFactory::Ptr _txResultFactory,
         bcos::front::FrontServiceInterface::Ptr _frontService,
-        bcos::dispatcher::DispatcherInterface::Ptr _dispatcher,
+        bcos::scheduler::SchedulerInterface::Ptr _scheduler,
         bcos::consensus::ConsensusInterface::Ptr _consensus, BlockSyncMsgFactory::Ptr _msgFactory)
       : SyncConfig(_nodeId),
         m_ledger(_ledger),
@@ -49,7 +49,7 @@ public:
         m_blockFactory(_blockFactory),
         m_txResultFactory(_txResultFactory),
         m_frontService(_frontService),
-        m_dispatcher(_dispatcher),
+        m_scheduler(_scheduler),
         m_consensus(_consensus),
         m_msgFactory(_msgFactory)
     {}
@@ -58,7 +58,7 @@ public:
     bcos::ledger::LedgerInterface::Ptr ledger() { return m_ledger; }
     bcos::protocol::BlockFactory::Ptr blockFactory() { return m_blockFactory; }
     bcos::front::FrontServiceInterface::Ptr frontService() { return m_frontService; }
-    bcos::dispatcher::DispatcherInterface::Ptr dispatcher() { return m_dispatcher; }
+    bcos::scheduler::SchedulerInterface::Ptr scheduler() { return m_scheduler; }
     bcos::consensus::ConsensusInterface::Ptr consensus() { return m_consensus; }
 
     BlockSyncMsgFactory::Ptr msgFactory() { return m_msgFactory; }
@@ -121,7 +121,7 @@ private:
     bcos::protocol::BlockFactory::Ptr m_blockFactory;
     bcos::protocol::TransactionSubmitResultFactory::Ptr m_txResultFactory;
     bcos::front::FrontServiceInterface::Ptr m_frontService;
-    bcos::dispatcher::DispatcherInterface::Ptr m_dispatcher;
+    bcos::scheduler::SchedulerInterface::Ptr m_scheduler;
     bcos::consensus::ConsensusInterface::Ptr m_consensus;
     BlockSyncMsgFactory::Ptr m_msgFactory;
 
