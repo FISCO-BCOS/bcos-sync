@@ -223,9 +223,9 @@ void DownloadingQueue::applyBlock(Block::Ptr _block, size_t _retryTime)
     }
     auto startT = utcTime();
     auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
-    m_config->dispatcher()->asyncExecuteBlock(_block, true,
+    m_config->scheduler()->executeBlock(_block, true,
         [self, startT, _block, _retryTime](
-            Error::Ptr _error, protocol::BlockHeader::Ptr _blockHeader) {
+            Error::Ptr&& _error, protocol::BlockHeader::Ptr&& _blockHeader) {
             try
             {
                 auto downloadQueue = self.lock();
@@ -370,7 +370,7 @@ void DownloadingQueue::commitBlock(bcos::protocol::Block::Ptr _block)
         commitBlockState(_block);
     }
     // commit transaction firstly
-    auto txsData = std::make_shared<std::vector<bytesPointer>>();
+    auto txsData = std::make_shared<std::vector<bytesConstPtr>>();
     auto txsSize = _block->transactionsSize();
     auto txsHashList = std::make_shared<HashList>();
 
@@ -431,8 +431,8 @@ void DownloadingQueue::commitBlockState(bcos::protocol::Block::Ptr _block)
                       << LOG_KV("hash", _block->blockHeader()->hash().abridged());
     auto startT = utcTime();
     auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
-    m_config->ledger()->asyncCommitBlock(_block->blockHeader(),
-        [self, startT, _block](Error::Ptr _error, LedgerConfig::Ptr _ledgerConfig) {
+    m_config->scheduler()->commitBlock(_block->blockHeader(),
+        [self, startT, _block](Error::Ptr&& _error, LedgerConfig::Ptr&& _ledgerConfig) {
             try
             {
                 auto downloadingQueue = self.lock();

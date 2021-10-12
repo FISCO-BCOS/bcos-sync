@@ -24,15 +24,16 @@
 #include "bcos-sync/BlockSyncFactory.h"
 #include <bcos-framework/interfaces/consensus/ConsensusNode.h>
 #include <bcos-framework/libprotocol/TransactionSubmitResultFactoryImpl.h>
-#include <bcos-framework/testutils/faker/FakeDispatcher.h>
 #include <bcos-framework/testutils/faker/FakeFrontService.h>
 #include <bcos-framework/testutils/faker/FakeLedger.h>
+#include <bcos-framework/testutils/faker/FakeScheduler.h>
 #include <bcos-framework/testutils/faker/FakeTxPool.h>
 
 using namespace bcos;
 using namespace bcos::sync;
 using namespace bcos::crypto;
 using namespace bcos::protocol;
+using namespace bcos::scheduler;
 
 namespace bcos
 {
@@ -74,7 +75,7 @@ public:
     using Ptr = std::shared_ptr<FakeBlockSyncFactory>;
     FakeBlockSyncFactory(PublicPtr _nodeId, BlockFactory::Ptr _blockFactory,
         LedgerInterface::Ptr _ledger, FrontServiceInterface::Ptr _frontService,
-        DispatcherInterface::Ptr _dispatcher, ConsensusInterface::Ptr _consensus)
+        SchedulerInterface::Ptr _dispatcher, ConsensusInterface::Ptr _consensus)
       : BlockSyncFactory(_nodeId, _blockFactory,
             std::make_shared<bcos::protocol::TransactionSubmitResultFactoryImpl>(), _ledger,
             std::make_shared<FakeTxPoolForSync>(), _frontService, _dispatcher, _consensus)
@@ -101,9 +102,10 @@ public:
         m_frontService = std::make_shared<FakeFrontService>(m_keyPair->publicKey());
         m_consensus = std::make_shared<FakeConsensus>();
 
-        m_dispatcher = std::make_shared<FakeDispatcher>();
+        // create FakeScheduler
+        m_scheduler = std::make_shared<FakeScheduler>(m_ledger, m_blockFactory);
         auto blockSyncFactory = std::make_shared<FakeBlockSyncFactory>(m_keyPair->publicKey(),
-            m_blockFactory, m_ledger, m_frontService, m_dispatcher, m_consensus);
+            m_blockFactory, m_ledger, m_frontService, m_scheduler, m_consensus);
         m_sync = std::dynamic_pointer_cast<FakeBlockSync>(blockSyncFactory->createBlockSync());
         if (_fakeGateWay)
         {
@@ -113,7 +115,7 @@ public:
     }
 
     FakeFrontService::Ptr frontService() { return m_frontService; }
-    FakeDispatcher::Ptr dispatcher() { return m_dispatcher; }
+    FakeScheduler::Ptr scheduler() { return m_scheduler; }
     FakeConsensus::Ptr consensus() { return m_consensus; }
     FakeLedger::Ptr ledger() { return m_ledger; }
 
@@ -160,7 +162,7 @@ private:
     FakeConsensus::Ptr m_consensus;
     FakeLedger::Ptr m_ledger;
 
-    FakeDispatcher::Ptr m_dispatcher;
+    FakeScheduler::Ptr m_scheduler;
     FakeBlockSync::Ptr m_sync;
 };
 }  // namespace test

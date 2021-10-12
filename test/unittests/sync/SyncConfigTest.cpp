@@ -45,7 +45,7 @@ void testSyncConfig(CryptoSuite::Ptr _cryptoSuite)
     BOOST_CHECK(config->nodeID()->data() == faker->nodeID()->data());
     BOOST_CHECK(config->blockFactory());
     BOOST_CHECK(config->frontService());
-    BOOST_CHECK(config->dispatcher());
+    BOOST_CHECK(config->scheduler());
     BOOST_CHECK(config->consensus());
     BOOST_CHECK(config->msgFactory());
 
