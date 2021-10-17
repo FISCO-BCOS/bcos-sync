@@ -64,6 +64,12 @@ public:
     virtual void init();
     BlockSyncConfig::Ptr config() { return m_config; }
 
+    void notifyConnectedNodes(bcos::crypto::NodeIDSet const& _connectedNodes,
+        std::function<void(Error::Ptr)> _onResponse) override
+    {
+        m_config->notifyConnectedNodes(_connectedNodes, _onResponse);
+    }
+
 protected:
     virtual void asyncNotifyBlockSyncMessage(Error::Ptr _error, bcos::crypto::NodeIDPtr _nodeID,
         bytesConstRef _data, std::function<void(bytesConstRef _respData)> _sendResponse,
