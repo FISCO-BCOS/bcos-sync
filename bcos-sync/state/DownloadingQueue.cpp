@@ -491,7 +491,7 @@ void DownloadingQueue::finalizeBlock(
         auto txResult = m_config->txResultFactory()->createTxSubmitResult();
         txResult->setBlockHash(_block->blockHeader()->hash());
         txResult->setTxHash(hash);
-        // txResult->setNonce(tx->nonce()); // FIXME: no nonce field!
+        txResult->setNonce(tx->nonce());
 
         results->push_back(txResult);
     }
