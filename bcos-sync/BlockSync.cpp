@@ -487,10 +487,14 @@ void BlockSync::tryToRequestBlocks()
     m_config->consensus()->notifyHighestSyncingNumber(requestToNumber);
     auto topBlock = m_downloadingQueue->top();
     // The block in BlockQueue is not nextBlock(the BlockQueue missing some block)
-    if (topBlock && topBlock->blockHeader()->number() > m_config->nextBlock())
+    if (topBlock)
     {
-        requestToNumber =
-            std::min(m_config->knownHighestNumber(), (topBlock->blockHeader()->number() - 1));
+        auto topBlockHeader = topBlock->blockHeader();
+        if (topBlockHeader && topBlockHeader->number() > m_config->nextBlock())
+        {
+            requestToNumber =
+                std::min(m_config->knownHighestNumber(), (topBlockHeader->number() - 1));
+        }
     }
     auto currentNumber = m_config->blockNumber();
     // no need to request blocks
@@ -606,12 +610,13 @@ void BlockSync::maintainDownloadingQueue()
         auto block = m_downloadingQueue->top();
         m_downloadingQueue->pop();
         m_state = SyncState::Downloading;
-        auto blockNumber = block->blockHeader()->number();
+        auto blockHeader = block->blockHeader();
+        auto blockNumber = blockHeader->number();
 
         m_downloadingQueue->applyBlock(block);
         BLKSYNC_LOG(INFO) << LOG_BADGE("Download") << LOG_DESC("BlockSync: applyBlock")
-                          << LOG_KV("execNum", block->blockHeader()->number())
-                          << LOG_KV("hash", block->blockHeader()->hash().abridged())
+                          << LOG_KV("execNum", blockHeader->number())
+                          << LOG_KV("hash", blockHeader->hash().abridged())
                           << LOG_KV("node", m_config->nodeID()->shortHex());
         m_config->setExecutedBlock(blockNumber);
         executedBlock = blockNumber;

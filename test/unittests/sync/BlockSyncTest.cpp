@@ -167,18 +167,20 @@ void testComplicatedCase(CryptoSuite::Ptr _cryptoSuite)
     // check the maxKnownBlockNumber
     for (auto faker : syncPeerList)
     {
-        BOOST_CHECK(faker->syncConfig()->genesisHash() == genesisBlock->blockHeader()->hash());
-        BOOST_CHECK(faker->syncConfig()->knownLatestHash() == latestBlock->blockHeader()->hash());
+        auto genesisBlockHeader = genesisBlock->blockHeader();
+        auto latestBlockHeader = latestBlock->blockHeader();
+        BOOST_CHECK(faker->syncConfig()->genesisHash() == genesisBlockHeader->hash());
+        BOOST_CHECK(faker->syncConfig()->knownLatestHash() == latestBlockHeader->hash());
         BOOST_CHECK(faker->syncConfig()->knownHighestNumber() == maxBlockNumber);
     }
     auto invalidLedgerData = invalidFaker->ledger()->ledgerData();
     auto invalidLatestBlock = invalidLedgerData[invalidFaker->ledger()->blockNumber()];
     auto invalidGenesisBlock = invalidLedgerData[0];
     BOOST_CHECK(invalidFaker->sync()->syncStatus()->peers()->size() == 1);
-    BOOST_CHECK(
-        invalidFaker->syncConfig()->genesisHash() == invalidGenesisBlock->blockHeader()->hash());
-    BOOST_CHECK(
-        invalidFaker->syncConfig()->knownLatestHash() == invalidLatestBlock->blockHeader()->hash());
+    auto invalidGenesisBlockHeader = invalidGenesisBlock->blockHeader();
+    BOOST_CHECK(invalidFaker->syncConfig()->genesisHash() == invalidGenesisBlockHeader->hash());
+    auto invalidLatestBlockHeader = invalidLatestBlock->blockHeader();
+    BOOST_CHECK(invalidFaker->syncConfig()->knownLatestHash() == invalidLatestBlockHeader->hash());
     BOOST_CHECK(invalidFaker->syncConfig()->knownHighestNumber() == 0);
 
     // wait the nodes to sync blocks
