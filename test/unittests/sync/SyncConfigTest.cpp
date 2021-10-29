@@ -51,7 +51,8 @@ void testSyncConfig(CryptoSuite::Ptr _cryptoSuite)
 
     auto ledgerData = faker->ledger()->ledgerData();
     auto genesisBlock = (ledgerData[0]);
-    BOOST_CHECK(config->genesisHash().asBytes() == genesisBlock->blockHeader()->hash().asBytes());
+    auto genesisBlockHeader = genesisBlock->blockHeader();
+    BOOST_CHECK(config->genesisHash().asBytes() == genesisBlockHeader->hash().asBytes());
     BOOST_CHECK(config->blockNumber() == faker->ledger()->blockNumber());
     BOOST_CHECK(config->nextBlock() == faker->ledger()->blockNumber() + 1);
     BOOST_CHECK(config->hash().asBytes() == faker->ledger()->ledgerConfig()->hash().asBytes());
