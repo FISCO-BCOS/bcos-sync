@@ -258,6 +258,7 @@ void DownloadingQueue::applyBlock(Block::Ptr _block, size_t _retryTime)
                     downloadQueue->m_config->setExecutedBlock(config->blockNumber());
                     return;
                 }
+                downloadQueue->m_config->setExecutedBlock(orgBlockHeader->number());
                 BLKSYNC_LOG(INFO) << LOG_BADGE("Download")
                                   << LOG_DESC("BlockSync: applyBlock success")
                                   << LOG_KV("number", orgBlockHeader->number())
@@ -482,45 +483,14 @@ void DownloadingQueue::commitBlockState(bcos::protocol::Block::Ptr _block)
 }
 
 
-void DownloadingQueue::finalizeBlock(
-    bcos::protocol::Block::Ptr _block, LedgerConfig::Ptr _ledgerConfig)
+void DownloadingQueue::finalizeBlock(bcos::protocol::Block::Ptr, LedgerConfig::Ptr _ledgerConfig)
 {
-    auto results = std::make_shared<bcos::protocol::TransactionSubmitResults>();
-    auto blockHeader = _block->blockHeader();
-    for (size_t i = 0; i < _block->transactionsSize(); i++)
+    if (m_newBlockHandler)
     {
-        // Note: must get tx firstly to maintain the lifetime caused by the tars protocol
-        // implementation
-        auto tx = _block->transaction(i);
-        auto hash = tx->hash();
-        auto txResult = m_config->txResultFactory()->createTxSubmitResult();
-        txResult->setBlockHash(blockHeader->hash());
-        txResult->setTxHash(hash);
-        txResult->setNonce(tx->nonce());
-        results->push_back(txResult);
+        m_newBlockHandler(_ledgerConfig);
     }
-    m_config->txpool()->asyncNotifyBlockResult(blockHeader->number(), results,
-        [this, _block, blockHeader, _ledgerConfig](Error::Ptr _error) {
-            // Note: only resetConfig after notifyBlockResult successfully
-            // reset config and broadcast the sync status
-            if (m_newBlockHandler)
-            {
-                m_newBlockHandler(_ledgerConfig);
-            }
-            // try to commit the next block
-            tryToCommitBlockToLedger();
-            if (_error == nullptr)
-            {
-                BLKSYNC_LOG(INFO) << LOG_DESC("notify block result success")
-                                  << LOG_KV("number", blockHeader->number())
-                                  << LOG_KV("hash", blockHeader->hash().abridged())
-                                  << LOG_KV("txsSize", _block->transactionsSize());
-                return;
-            }
-            BLKSYNC_LOG(INFO) << LOG_DESC("notify block result failed")
-                              << LOG_KV("code", _error->errorCode())
-                              << LOG_KV("msg", _error->errorMessage());
-        });
+    // try to commit the next block
+    tryToCommitBlockToLedger();
 }
 
 void DownloadingQueue::clearExpiredQueueCache()
