@@ -258,6 +258,7 @@ void DownloadingQueue::applyBlock(Block::Ptr _block, size_t _retryTime)
                     downloadQueue->m_config->setExecutedBlock(config->blockNumber());
                     return;
                 }
+                downloadQueue->m_config->setExecutedBlock(orgBlockHeader->number());
                 BLKSYNC_LOG(INFO) << LOG_BADGE("Download")
                                   << LOG_DESC("BlockSync: applyBlock success")
                                   << LOG_KV("number", orgBlockHeader->number())

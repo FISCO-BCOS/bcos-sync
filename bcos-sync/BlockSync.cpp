@@ -604,8 +604,8 @@ void BlockSync::maintainDownloadingQueue()
         return;
     }
     // execute the expected block
-    while (m_downloadingQueue->top() &&
-           m_downloadingQueue->top()->blockHeader()->number() == (executedBlock + 1))
+    if (m_downloadingQueue->top() &&
+        m_downloadingQueue->top()->blockHeader()->number() == (executedBlock + 1))
     {
         auto block = m_downloadingQueue->top();
         m_downloadingQueue->pop();
@@ -618,8 +618,6 @@ void BlockSync::maintainDownloadingQueue()
                           << LOG_KV("execNum", blockHeader->number())
                           << LOG_KV("hash", blockHeader->hash().abridged())
                           << LOG_KV("node", m_config->nodeID()->shortHex());
-        m_config->setExecutedBlock(blockNumber);
-        executedBlock = blockNumber;
     }
 }
 
@@ -673,6 +671,7 @@ void BlockSync::fetchAndSendBlock(
                 {
                     return;
                 }
+                auto blockHeader = _block->blockHeader();
                 auto config = sync->m_config;
                 auto blocksReq = config->msgFactory()->createBlocksMsg();
                 bytesPointer blockData = std::make_shared<bytes>();
@@ -683,7 +682,8 @@ void BlockSync::fetchAndSendBlock(
                     ModuleID::BlockSync, _peer, ref(*(blocksReq->encode())), 0, nullptr);
                 BLKSYNC_LOG(DEBUG)
                     << LOG_DESC("fetchAndSendBlock: response block")
-                    << LOG_KV("toPeer", _peer->shortHex()) << LOG_KV("number", _number);
+                    << LOG_KV("toPeer", _peer->shortHex()) << LOG_KV("number", _number)
+                    << LOG_KV("hash", blockHeader->hash().abridged());
             }
             catch (std::exception const& e)
             {
