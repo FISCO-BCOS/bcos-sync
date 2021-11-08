@@ -614,10 +614,13 @@ void BlockSync::maintainDownloadingQueue()
         auto blockNumber = blockHeader->number();
 
         m_downloadingQueue->applyBlock(block);
+        auto header = block->blockHeader();
+        auto signature = header->signatureList();
         BLKSYNC_LOG(INFO) << LOG_BADGE("Download") << LOG_DESC("BlockSync: applyBlock")
                           << LOG_KV("execNum", blockHeader->number())
                           << LOG_KV("hash", blockHeader->hash().abridged())
-                          << LOG_KV("node", m_config->nodeID()->shortHex());
+                          << LOG_KV("node", m_config->nodeID()->shortHex())
+                          << LOG_KV("signatureSize", signature.size());
     }
 }
 
@@ -672,6 +675,7 @@ void BlockSync::fetchAndSendBlock(
                     return;
                 }
                 auto blockHeader = _block->blockHeader();
+                auto signature = blockHeader->signatureList();
                 auto config = sync->m_config;
                 auto blocksReq = config->msgFactory()->createBlocksMsg();
                 bytesPointer blockData = std::make_shared<bytes>();
@@ -683,7 +687,8 @@ void BlockSync::fetchAndSendBlock(
                 BLKSYNC_LOG(DEBUG)
                     << LOG_DESC("fetchAndSendBlock: response block")
                     << LOG_KV("toPeer", _peer->shortHex()) << LOG_KV("number", _number)
-                    << LOG_KV("hash", blockHeader->hash().abridged());
+                    << LOG_KV("hash", blockHeader->hash().abridged())
+                    << LOG_KV("signatureSize", signature.size());
             }
             catch (std::exception const& e)
             {
