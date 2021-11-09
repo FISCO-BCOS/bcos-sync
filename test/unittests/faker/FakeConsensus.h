@@ -78,6 +78,11 @@ public:
 
     void asyncNoteUnSealedTxsSize(size_t, std::function<void(Error::Ptr)>) override {}
 
+    void asyncGetConsensusStatus(std::function<void(Error::Ptr, std::string)>) override {}
+    void notifyConnectedNodes(
+        bcos::crypto::NodeIDSet const&, std::function<void(Error::Ptr)>) override
+    {}
+
 private:
     std::atomic_bool m_checkBlockResult = {true};
     LedgerConfig::Ptr m_ledgerConfig;
