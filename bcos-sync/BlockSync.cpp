@@ -620,7 +620,8 @@ void BlockSync::maintainDownloadingQueue()
                           << LOG_KV("execNum", blockHeader->number())
                           << LOG_KV("hash", blockHeader->hash().abridged())
                           << LOG_KV("node", m_config->nodeID()->shortHex())
-                          << LOG_KV("signatureSize", signature.size());
+                          << LOG_KV("signatureSize", signature.size())
+                          << LOG_KV("txsSize", block->transactionsSize());
     }
 }
 
@@ -735,6 +736,11 @@ void BlockSync::maintainPeersConnection()
     {
         // skip the node-self
         if (node->data() == m_config->nodeID()->data())
+        {
+            continue;
+        }
+        // not send request to the nodes disconnected
+        if (!m_config->connected(node))
         {
             continue;
         }
