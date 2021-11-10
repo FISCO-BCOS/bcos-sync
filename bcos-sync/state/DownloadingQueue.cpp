@@ -265,6 +265,7 @@ void DownloadingQueue::applyBlock(Block::Ptr _block, size_t _retryTime)
                                   << LOG_KV("number", orgBlockHeader->number())
                                   << LOG_KV("hash", orgBlockHeader->hash().abridged())
                                   << LOG_KV("signatureSize", signature.size())
+                                  << LOG_KV("txsSize", _block->transactionsSize())
                                   << LOG_KV("nextBlock", downloadQueue->m_config->nextBlock())
                                   << LOG_KV("timeCost", (utcTime() - startT))
                                   << LOG_KV("node", downloadQueue->m_config->nodeID()->shortHex());
