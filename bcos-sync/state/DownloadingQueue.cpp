@@ -206,7 +206,9 @@ bool DownloadingQueue::verifyExecutedBlock(
                            << LOG_KV("orgReceiptsRoot", orgBlockHeader->receiptsRoot())
                            << LOG_KV("executedReceptsRoot", _blockHeader->receiptsRoot())
                            << LOG_KV("orgDBHash", orgBlockHeader->stateRoot())
-                           << LOG_KV("executedDBHash", _blockHeader->stateRoot());
+                           << LOG_KV("executedDBHash", _blockHeader->stateRoot())
+                           << LOG_KV("orgGasUsed", orgBlockHeader->gasUsed())
+                           << LOG_KV("executedGasUsed", _blockHeader->gasUsed());
         return false;
     }
     return true;
