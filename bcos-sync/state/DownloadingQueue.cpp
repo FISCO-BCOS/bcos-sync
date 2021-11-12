@@ -214,25 +214,13 @@ bool DownloadingQueue::verifyExecutedBlock(
     return true;
 }
 
-void DownloadingQueue::applyBlock(Block::Ptr _block, size_t _retryTime)
+void DownloadingQueue::applyBlock(Block::Ptr _block)
 {
     auto blockHeader = _block->blockHeader();
-    // at most retry one time
-    if (_retryTime >= 2)
-    {
-        BLKSYNC_LOG(WARNING) << LOG_DESC(
-                                    "applyBlock over the max retry time, reset the executedBlock")
-                             << LOG_KV("reset executedBlock", m_config->blockNumber())
-                             << LOG_KV("number", blockHeader->number())
-                             << LOG_KV("hash", blockHeader->hash().abridged());
-        m_config->setExecutedBlock(m_config->blockNumber());
-        return;
-    }
     auto startT = utcTime();
     auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
     m_config->scheduler()->executeBlock(_block, true,
-        [self, startT, _block, _retryTime](
-            Error::Ptr&& _error, protocol::BlockHeader::Ptr&& _blockHeader) {
+        [self, startT, _block](Error::Ptr&& _error, protocol::BlockHeader::Ptr&& _blockHeader) {
             auto orgBlockHeader = _block->blockHeader();
             try
             {
@@ -252,15 +240,15 @@ void DownloadingQueue::applyBlock(Block::Ptr _block, size_t _retryTime)
                         << LOG_KV("hash", orgBlockHeader->hash().abridged())
                         << LOG_KV("errorCode", _error->errorCode())
                         << LOG_KV("errorMessage", _error->errorMessage());
-                    downloadQueue->applyBlock(_block, (_retryTime + 1));
+                    config->setExecutedBlock(config->blockNumber());
                     return;
                 }
                 if (!downloadQueue->verifyExecutedBlock(_block, _blockHeader))
                 {
-                    downloadQueue->m_config->setExecutedBlock(config->blockNumber());
+                    config->setExecutedBlock(config->blockNumber());
                     return;
                 }
-                downloadQueue->m_config->setExecutedBlock(orgBlockHeader->number());
+                config->setExecutedBlock(orgBlockHeader->number());
                 auto signature = orgBlockHeader->signatureList();
                 BLKSYNC_LOG(INFO) << LOG_BADGE("Download")
                                   << LOG_DESC("BlockSync: applyBlock success")
