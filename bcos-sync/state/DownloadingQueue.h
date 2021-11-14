@@ -66,7 +66,7 @@ public:
 
     virtual void clearFullQueueIfNotHas(bcos::protocol::BlockNumber _blockNumber);
 
-    virtual void applyBlock(bcos::protocol::Block::Ptr _block, size_t _retryTime = 0);
+    virtual void applyBlock(bcos::protocol::Block::Ptr _block);
     // clear queue and buffer
     virtual void clear();
 
