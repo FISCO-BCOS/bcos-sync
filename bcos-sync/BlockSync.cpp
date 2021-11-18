@@ -612,8 +612,6 @@ void BlockSync::maintainDownloadingQueue()
         m_state = SyncState::Downloading;
         auto blockHeader = block->blockHeader();
         auto blockNumber = blockHeader->number();
-
-        m_downloadingQueue->applyBlock(block);
         auto header = block->blockHeader();
         auto signature = header->signatureList();
         BLKSYNC_LOG(INFO) << LOG_BADGE("Download") << LOG_DESC("BlockSync: applyBlock")
@@ -622,6 +620,7 @@ void BlockSync::maintainDownloadingQueue()
                           << LOG_KV("node", m_config->nodeID()->shortHex())
                           << LOG_KV("signatureSize", signature.size())
                           << LOG_KV("txsSize", block->transactionsSize());
+        m_downloadingQueue->applyBlock(block);
     }
 }
 
