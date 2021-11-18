@@ -105,6 +105,10 @@ protected:
         bcos::protocol::Block::Ptr _block, bcos::protocol::BlockHeader::Ptr _blockHeader);
 
 private:
+    // Note: this function should not be called frequently
+    std::string printBlockHeader(bcos::protocol::BlockHeader::Ptr _header);
+
+private:
     BlockSyncConfig::Ptr m_config;
     BlockQueue m_blocks;
     mutable SharedMutex x_blocks;
