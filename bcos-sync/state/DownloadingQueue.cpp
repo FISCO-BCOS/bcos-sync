@@ -199,21 +199,53 @@ bool DownloadingQueue::verifyExecutedBlock(
     if (orgBlockHeader->hash() != _blockHeader->hash())
     {
         BLKSYNC_LOG(ERROR) << LOG_DESC("verifyExecutedBlock failed for inconsistent hash")
-                           << LOG_KV("orgHash", orgBlockHeader->hash())
-                           << LOG_KV("executedHash", _blockHeader->hash())
-                           << LOG_KV("orgTxsRoot", orgBlockHeader->txsRoot())
-                           << LOG_KV("executedTxsRoot", _blockHeader->txsRoot())
-                           << LOG_KV("orgReceiptsRoot", orgBlockHeader->receiptsRoot())
-                           << LOG_KV("executedReceptsRoot", _blockHeader->receiptsRoot())
-                           << LOG_KV("orgDBHash", orgBlockHeader->stateRoot())
-                           << LOG_KV("executedDBHash", _blockHeader->stateRoot())
-                           << LOG_KV("orgGasUsed", orgBlockHeader->gasUsed())
-                           << LOG_KV("executedGasUsed", _blockHeader->gasUsed());
+                           << LOG_KV("orgHeader", printBlockHeader(orgBlockHeader)) << "\n"
+                           << LOG_KV("executedHeader", printBlockHeader(_blockHeader));
+
         return false;
     }
     return true;
 }
 
+std::string DownloadingQueue::printBlockHeader(BlockHeader::Ptr _header)
+{
+    std::stringstream oss;
+    auto sealerList = _header->sealerList();
+    std::stringstream sealerListStr;
+    for (auto const& sealer : sealerList)
+    {
+        sealerListStr << *toHexString(sealer) << ", ";
+    }
+    auto signatureList = _header->signatureList();
+    std::stringstream signatureListStr;
+    for (auto const& signatureData : signatureList)
+    {
+        signatureListStr << (*toHexString(signatureData.signature)) << ":" << signatureData.index
+                         << ", ";
+    }
+
+    std::stringstream weightsStr;
+    auto weightList = _header->consensusWeights();
+    for (auto const& weight : weightList)
+    {
+        weightsStr << weight << ", ";
+    }
+    auto parentInfo = _header->parentInfo();
+    std::stringstream parentInfoStr;
+    for (auto const& parent : parentInfo)
+    {
+        parentInfoStr << parent.blockNumber << ":" << parent.blockHash << ", ";
+    }
+    oss << LOG_KV("hash", _header->hash()) << LOG_KV("version", _header->version())
+        << LOG_KV("txsRoot", _header->txsRoot()) << LOG_KV("receiptsRoot", _header->receiptsRoot())
+        << LOG_KV("dbHash", _header->stateRoot()) << LOG_KV("number", _header->number())
+        << LOG_KV("gasUsed", _header->gasUsed()) << LOG_KV("timestamp", _header->timestamp())
+        << LOG_KV("sealer", _header->sealer()) << LOG_KV("sealerList", sealerListStr.str())
+        << LOG_KV("signatureList", signatureListStr.str())
+        << LOG_KV("consensusWeights", weightsStr.str()) << LOG_KV("parents", parentInfoStr.str())
+        << LOG_KV("extraData", *toHexString(_header->extraData()));
+    return oss.str();
+}
 void DownloadingQueue::applyBlock(Block::Ptr _block)
 {
     auto blockHeader = _block->blockHeader();
