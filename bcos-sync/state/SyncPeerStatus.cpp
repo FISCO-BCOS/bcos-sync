@@ -46,10 +46,6 @@ PeerStatus::PeerStatus(
 bool PeerStatus::update(BlockSyncStatusInterface::ConstPtr _status)
 {
     UpgradableGuard l(x_mutex);
-    if (m_hash != HashType() && _status->number() <= m_number)
-    {
-        return false;
-    }
     if (m_genesisHash != HashType() && _status->genesisHash() != m_genesisHash)
     {
         BLKSYNC_LOG(WARNING) << LOG_BADGE("Status")
