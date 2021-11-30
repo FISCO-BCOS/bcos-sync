@@ -401,7 +401,9 @@ void BlockSync::onNewBlock(bcos::ledger::LedgerConfig::Ptr _ledgerConfig)
 void BlockSync::onPeerStatus(NodeIDPtr _nodeID, BlockSyncMsgInterface::Ptr _syncMsg)
 {
     // receive peer not exist in the group
-    if (!m_config->existsInGroup(_nodeID))
+    // Note: only should reject syncStatus from the node whose blockNumber falling behind of this
+    // node
+    if (!m_config->existsInGroup(_nodeID) && _syncMsg->number() <= m_config->blockNumber())
     {
         return;
     }
