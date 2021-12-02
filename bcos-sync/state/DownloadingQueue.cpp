@@ -246,9 +246,23 @@ std::string DownloadingQueue::printBlockHeader(BlockHeader::Ptr _header)
         << LOG_KV("extraData", *toHexString(_header->extraData()));
     return oss.str();
 }
+
+
 void DownloadingQueue::applyBlock(Block::Ptr _block)
 {
     auto blockHeader = _block->blockHeader();
+    // check the block number
+    if (blockHeader->number() <= m_config->blockNumber())
+    {
+        BLKSYNC_LOG(WARNING) << LOG_BADGE("Download")
+                             << LOG_BADGE("BlockSync: checkBlock before apply")
+                             << LOG_DESC("Ignore illegal block")
+                             << LOG_KV("reason", "number illegal")
+                             << LOG_KV("thisNumber", blockHeader->number())
+                             << LOG_KV("currentNumber", m_config->blockNumber());
+        m_config->setExecutedBlock(m_config->blockNumber());
+        return;
+    }
     auto startT = utcTime();
     auto self = std::weak_ptr<DownloadingQueue>(shared_from_this());
     m_config->scheduler()->executeBlock(_block, true,
