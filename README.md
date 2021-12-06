@@ -10,12 +10,11 @@ English / [中文](doc/README_CN.md)
 [![Code Lines](https://tokei.rs/b1/github/FISCO-BCOS/bcos-sync?category=code)](https://github.com/FISCO-BCOS/bcos-sync)
 [![version](https://img.shields.io/github/tag/FISCO-BCOS/bcos-sync.svg)](https://github.com/FISCO-BCOS/bcos-sync/releases/latest)
 
-bcos-sync is the implementation of the synchronization module of [FISCO BCOS 3.0](https://github.com/FISCO-BCOS/bcos-tars-services), including the blocks download/upload features. For details, please refer to [Synchronization Module Design Document](TODO.html).
+bcos-sync is the implementation of the synchronization module of [FISCO BCOS 3.0](https://github.com/FISCO-BCOS/FISCO-BCOS), including the blocks download/upload features. For details, please refer to [FISCO BCOS 3.0 documentation](https://fisco-bcos-documentation-3x.readthedocs.io/zh/latest/index.html).
 
 ## Documentation
 
-- [FISCO BCOS 3.0 quick start](https://fisco-bcos-documentation.readthedocs.io/zh_CN/latest/docs/installation.html)
-- [FISCO BCOS 3.0 system design](https://TODO.html)
+- [FISCO BCOS 3.0 Documentation](https://fisco-bcos-documentation-3x.readthedocs.io/zh/latest/index.html)
 
 ## Code contribution
 
