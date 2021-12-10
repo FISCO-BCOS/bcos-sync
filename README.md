@@ -5,16 +5,15 @@ English / [中文](doc/README_CN.md)
 
 [![codecov](https://codecov.io/gh/FISCO-BCOS/bcos-sync/branch/master/graph/badge.svg)](https://codecov.io/gh/FISCO-BCOS/bcos-sync)
 [![CodeFactor](https://www.codefactor.io/repository/github/fisco-bcos/bcos-sync/badge)](https://www.codefactor.io/repository/github/fisco-bcos/bcos-sync)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/08552871ee104fe299b00bc79f8a12b9)](https://www.codacy.com/app/fisco-dev/FISCO-BCOS?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=FISCO-BCOS/bcos-sync&amp;utm_campaign=Badge_Grade)
 [![GitHub All Releases](https://img.shields.io/github/downloads/FISCO-BCOS/bcos-sync/total.svg)](https://github.com/FISCO-BCOS/bcos-sync)
 [![Code Lines](https://tokei.rs/b1/github/FISCO-BCOS/bcos-sync?category=code)](https://github.com/FISCO-BCOS/bcos-sync)
 [![version](https://img.shields.io/github/tag/FISCO-BCOS/bcos-sync.svg)](https://github.com/FISCO-BCOS/bcos-sync/releases/latest)
 
-bcos-sync is the implementation of the synchronization module of [FISCO BCOS 3.0](https://github.com/FISCO-BCOS/FISCO-BCOS), including the blocks download/upload features. For details, please refer to [FISCO BCOS 3.0 documentation](https://fisco-bcos-documentation-3x.readthedocs.io/zh/latest/index.html).
+bcos-sync is the implementation of the synchronization module of [FISCO BCOS 3.x](https://github.com/FISCO-BCOS/FISCO-BCOS), including the blocks download/upload features. For details, please refer to [FISCO BCOS 3.x documentation](https://fisco-bcos-doc.readthedocs.io/).
 
 ## Documentation
 
-- [FISCO BCOS 3.0 Documentation](https://fisco-bcos-documentation-3x.readthedocs.io/zh/latest/index.html)
+- [FISCO BCOS 3.x Documentation](https://fisco-bcos-doc.readthedocs.io/)
 
 ## Code contribution
 
