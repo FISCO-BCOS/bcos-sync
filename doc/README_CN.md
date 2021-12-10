@@ -6,16 +6,15 @@
 
 [![codecov](https://codecov.io/gh/FISCO-BCOS/bcos-sync/branch/master/graph/badge.svg)](https://codecov.io/gh/FISCO-BCOS/bcos-sync)
 [![CodeFactor](https://www.codefactor.io/repository/github/fisco-bcos/bcos-sync/badge)](https://www.codefactor.io/repository/github/fisco-bcos/bcos-sync)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/08552871ee104fe299b00bc79f8a12b9)](https://www.codacy.com/app/fisco-dev/FISCO-BCOS?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=FISCO-BCOS/bcos-sync&amp;utm_campaign=Badge_Grade)
 [![GitHub All Releases](https://img.shields.io/github/downloads/FISCO-BCOS/bcos-sync/total.svg)](https://github.com/FISCO-BCOS/bcos-sync)
 [![Code Lines](https://tokei.rs/b1/github/FISCO-BCOS/bcos-sync?category=code)](https://github.com/FISCO-BCOS/bcos-sync)
 [![version](https://img.shields.io/github/tag/FISCO-BCOS/bcos-sync.svg)](https://github.com/FISCO-BCOS/bcos-sync/releases/latest)
 
-bcos-sync是[FISCO BCOS 3.0](https://github.com/FISCO-BCOS/FISCO-BCOS)的同步模块的实现，包括区块同步功能，详细可参考[FISCO BCOS文档](https://fisco-bcos-documentation-3x.readthedocs.io/zh/latest/index.html).
+bcos-sync是[FISCO BCOS 3.x](https://github.com/FISCO-BCOS/FISCO-BCOS)的同步模块的实现，包括区块同步功能，详细可参考[FISCO BCOS 3.x文档](https://fisco-bcos-doc.readthedocs.io/).
 
 ## 文档
 
-- [FISCO BCOS 3.0文档](https://fisco-bcos-documentation-3x.readthedocs.io/zh/latest/index.html)
+- [FISCO BCOS 3.x文档](https://fisco-bcos-doc.readthedocs.io/)
 
 ## 加入社区
 
